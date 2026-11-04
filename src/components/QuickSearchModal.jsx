@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, ChevronRight, Terminal, Box, Globe, Cpu } from 'lucide-react';
+import { Search, X, ChevronRight, Globe } from 'lucide-react';
 
 export default function QuickSearchModal({
   isOpen,
   onClose,
   ports = [],
   tunnels = [],
-  searchQuery,
+  searchQuery = '',
   onUpdateSearch,
   onSelectPort
 }) {
@@ -15,33 +15,35 @@ export default function QuickSearchModal({
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
-  // Sync external search query
+  // Sync external search query and focus immediately on open
   useEffect(() => {
     if (isOpen) {
       setQuery(searchQuery || '');
       setSelectedIndex(0);
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.select();
-        }
-      }, 50);
+      // Immediate synchronous focus with microtask fallback for zero lag
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+      requestAnimationFrame(() => {
+        if (inputRef.current) inputRef.current.focus();
+      });
     }
-  }, [isOpen, searchQuery]);
+  }, [isOpen]);
 
-  // Handle escape & shortcuts inside modal
+  // Handle escape & shortcuts
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   const tunnelMap = useMemo(() => {
     const map = new Map();
@@ -77,7 +79,7 @@ export default function QuickSearchModal({
     });
   }, [ports, query]);
 
-  // Keep selected index in bounds
+  // Reset selected index when query changes
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
@@ -96,16 +98,24 @@ export default function QuickSearchModal({
 
   const handleInputChange = (val) => {
     setQuery(val);
-    onUpdateSearch(val);
   };
 
   const handleClear = () => {
     setQuery('');
-    onUpdateSearch('');
     if (inputRef.current) inputRef.current.focus();
   };
 
+  const handleClose = () => {
+    if (onUpdateSearch) {
+      onUpdateSearch(query);
+    }
+    onClose();
+  };
+
   const handleSelect = (port) => {
+    if (onUpdateSearch) {
+      onUpdateSearch(query);
+    }
     onSelectPort(port);
     onClose();
   };
@@ -127,16 +137,16 @@ export default function QuickSearchModal({
 
   return (
     <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/65 backdrop-blur-[3px] cursor-pointer animate-in fade-in duration-150"
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 cursor-pointer"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl rounded-xl border border-white/[0.12] bg-[#111318] shadow-2xl overflow-hidden flex flex-col cursor-default animate-in zoom-in-95 duration-150"
+        className="w-full max-w-xl rounded-xl border border-white/[0.1] bg-[#111317] shadow-2xl overflow-hidden flex flex-col cursor-default"
       >
         {/* Search Input Bar */}
-        <div className="px-4 py-3.5 border-b border-white/[0.08] flex items-center gap-3 bg-[#13161c]">
-          <Search className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="px-4 py-3 border-b border-white/[0.07] flex items-center gap-3 bg-[#13161c]">
+          <Search className="w-4 h-4 text-zinc-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -150,14 +160,14 @@ export default function QuickSearchModal({
           {query && (
             <button
               onClick={handleClear}
-              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition text-sm"
+              className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition text-xs"
               title="Clear"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
 
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.07] border border-white/[0.1] text-[10px] font-mono text-zinc-400 shrink-0">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-400 shrink-0">
             ESC
           </kbd>
         </div>
@@ -165,7 +175,7 @@ export default function QuickSearchModal({
         {/* Results List */}
         <div
           ref={listRef}
-          className="max-h-[380px] overflow-y-auto divide-y divide-white/[0.04] p-1.5 select-none"
+          className="max-h-[380px] overflow-y-auto divide-y divide-white/[0.03] p-1.5 select-none"
         >
           {filteredPorts.length === 0 ? (
             <div className="py-12 text-center text-xs text-zinc-500 font-mono">
@@ -182,17 +192,30 @@ export default function QuickSearchModal({
                   key={`${p.port}-${p.protocol}-${p.pid || idx}`}
                   onClick={() => handleSelect(p)}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`px-3 py-2.5 rounded-lg flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                  className={`px-3 py-2 rounded-lg flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                     isSelected
-                      ? 'bg-emerald-500/10 border border-emerald-500/25 text-zinc-100'
+                      ? 'bg-white/[0.08] border border-white/[0.1] text-zinc-100'
                       : 'hover:bg-white/[0.03] text-zinc-300 border border-transparent'
                   }`}
                 >
                   {/* Left: Port & Protocol */}
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-16 font-mono text-xs font-semibold text-zinc-100 tabular-nums shrink-0 flex items-center gap-1.5">
-                      <span className="text-emerald-400 font-bold">{p.port}</span>
-                      <span className="text-[10px] text-zinc-500 font-normal">{p.protocol}</span>
+                    {/* Status Dot Indicator */}
+                    <div className="shrink-0 flex items-center">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          p.isDocker
+                            ? 'bg-sky-400'
+                            : isDevOrigin
+                            ? 'bg-emerald-400'
+                            : 'bg-zinc-600'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="w-16 font-mono text-xs tabular-nums shrink-0 flex items-center gap-1.5">
+                      <span className="font-semibold text-zinc-100">{p.port}</span>
+                      <span className="text-[10px] text-zinc-500">{p.protocol}</span>
                     </div>
 
                     {/* Process Info */}
@@ -203,17 +226,17 @@ export default function QuickSearchModal({
                         </span>
 
                         {p.isDocker ? (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-blue-500/15 text-blue-300 border border-blue-500/20">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-sky-500/10 text-sky-300 border border-sky-500/20">
                             docker
                           </span>
                         ) : isDevOrigin ? (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/20">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20">
                             dev
                           </span>
                         ) : null}
 
                         {hasTunnel && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 flex items-center gap-1">
                             <Globe className="w-2.5 h-2.5" /> tunnel
                           </span>
                         )}
@@ -236,8 +259,8 @@ export default function QuickSearchModal({
                     </div>
 
                     <ChevronRight
-                      className={`w-4 h-4 transition ${
-                        isSelected ? 'text-emerald-400 translate-x-0.5' : 'text-zinc-600'
+                      className={`w-3.5 h-3.5 transition ${
+                        isSelected ? 'text-zinc-300 translate-x-0.5' : 'text-zinc-600'
                       }`}
                     />
                   </div>

@@ -152,7 +152,7 @@ export default function PortTable({
           className="relative flex-1 max-w-sm cursor-pointer group"
           title="Click to search or press Ctrl+F"
         >
-          <Search className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400 absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" />
           <input
             type="text"
             readOnly
