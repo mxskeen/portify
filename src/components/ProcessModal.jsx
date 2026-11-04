@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Terminal, 
@@ -13,6 +13,14 @@ import {
 export default function ProcessModal({ processData, onClose, onKillPort, onCopyText }) {
   const [copied, setCopied] = useState(false);
   const [killing, setKilling] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   if (!processData) return null;
 
@@ -33,8 +41,14 @@ export default function ProcessModal({ processData, onClose, onKillPort, onCopyT
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg rounded-xl border border-white/[0.1] bg-[#111318] shadow-2xl overflow-hidden flex flex-col">
+    <div 
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] cursor-pointer"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-xl border border-white/[0.1] bg-[#111318] shadow-2xl overflow-hidden flex flex-col cursor-default"
+      >
         {/* Header */}
         <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
           <div className="flex items-center gap-2">

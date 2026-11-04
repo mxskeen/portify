@@ -76,6 +76,18 @@ export default function App() {
     };
   }, [fetchData]);
 
+  // Global keyboard shortcuts: Ctrl+R / Cmd+R to refresh scan
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        fetchData(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fetchData]);
+
   // Interval timer
   useEffect(() => {
     if (refreshRate <= 0) return;
