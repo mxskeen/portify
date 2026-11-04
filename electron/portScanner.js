@@ -51,6 +51,89 @@ function parsePsEtime(etime) {
   return days * 86400 + seconds;
 }
 
+export function resolveProcessMeta({ name, command, cwd, isDocker, dockerContainer, dockerImage, user }) {
+  if (isDocker && dockerContainer) {
+    return {
+      title: dockerContainer,
+      origin: dockerImage ? `Docker: ${dockerImage}` : 'Docker Container',
+      tag: 'docker'
+    };
+  }
+
+  const home = os.homedir();
+  let cleanCwd = cwd ? cwd.replace(home, '~') : '';
+
+  const lowerCmd = (command || '').toLowerCase();
+  const lowerName = (name || '').toLowerCase();
+
+  let title = name || 'Process';
+  let tag = 'app';
+
+  if (lowerCmd.includes('next-server') || lowerCmd.includes('next dev')) {
+    title = 'Next.js';
+    tag = 'dev';
+  } else if (lowerCmd.includes('vite')) {
+    title = 'Vite';
+    tag = 'dev';
+  } else if (lowerCmd.includes('react-scripts')) {
+    title = 'React';
+    tag = 'dev';
+  } else if (lowerCmd.includes('fastapi') || lowerCmd.includes('uvicorn')) {
+    title = 'FastAPI';
+    tag = 'dev';
+  } else if (lowerCmd.includes('flask')) {
+    title = 'Flask';
+    tag = 'dev';
+  } else if (lowerCmd.includes('django') || lowerCmd.includes('manage.py runserver')) {
+    title = 'Django';
+    tag = 'dev';
+  } else if (lowerName === 'node' || lowerName === 'bun' || lowerName === 'deno') {
+    title = lowerName;
+    tag = 'dev';
+  } else if (lowerName.includes('syncthing')) {
+    title = 'Syncthing';
+    tag = 'app';
+  } else if (lowerName.includes('aw-server')) {
+    title = 'ActivityWatch';
+    tag = 'app';
+  } else if (lowerName.includes('postgres')) {
+    title = 'PostgreSQL';
+    tag = 'database';
+  } else if (lowerName.includes('mysql')) {
+    title = 'MySQL';
+    tag = 'database';
+  } else if (lowerName.includes('redis')) {
+    title = 'Redis';
+    tag = 'database';
+  }
+
+  // Determine Origin (where it's from)
+  let origin = '';
+  if (cleanCwd && cleanCwd !== '~' && cleanCwd !== '/') {
+    origin = cleanCwd;
+  } else if (command) {
+    const homePattern = new RegExp(home, 'g');
+    const cleanCmd = command.replace(homePattern, '~');
+    // Match directory paths like ~/activitywatch or ~/kn/KnowDeck
+    const dirMatch = cleanCmd.match(/~[a-zA-Z0-9_\-\.\/]+/);
+    if (dirMatch) {
+      const parts = dirMatch[0].split('/');
+      // Keep up to 3 segments for neatness
+      origin = parts.slice(0, 4).join('/');
+    } else if (cleanCmd.startsWith('/usr/')) {
+      origin = 'System (/usr/bin)';
+    } else {
+      origin = cleanCmd.slice(0, 32);
+    }
+  }
+
+  if (user === 'root') {
+    tag = 'system';
+  }
+
+  return { title, origin, tag, cleanCwd };
+}
+
 /**
  * Get process table mapped by PID
  */
@@ -79,6 +162,13 @@ async function getProcessTableUnix() {
 
         const uptimeSec = parsePsEtime(etime);
 
+        let cwd = '';
+        if (process.platform === 'linux') {
+          try {
+            cwd = fs.readlinkSync(`/proc/${pid}/cwd`);
+          } catch (e) {}
+        }
+
         processMap.set(pid, {
           pid,
           ppid,
@@ -91,7 +181,8 @@ async function getProcessTableUnix() {
           uptimeFormatted: formatUptime(uptimeSec),
           startTime: lstart,
           name: comm,
-          command: args
+          command: args,
+          cwd
         });
       }
     }
@@ -153,12 +244,26 @@ async function scanLinux(processMap, dockerPortMap = new Map()) {
 
       let procDetails = pid && processMap.has(pid) ? processMap.get(pid) : null;
 
+      const meta = resolveProcessMeta({
+        name: dockerInfo ? dockerInfo.containerName : (procDetails ? procDetails.name : processName),
+        command: procDetails ? procDetails.command : (dockerInfo ? `Docker: ${dockerInfo.image}` : ''),
+        cwd: procDetails ? procDetails.cwd : '',
+        isDocker: Boolean(dockerInfo),
+        dockerContainer: dockerInfo ? dockerInfo.containerName : null,
+        dockerImage: dockerInfo ? dockerInfo.image : null,
+        user: procDetails ? procDetails.user : (dockerInfo ? 'docker' : 'root/system')
+      });
+
       ports.push({
         port,
         protocol,
         ip: ip || '*',
         pid: pid || (dockerInfo ? dockerInfo.pid : null),
-        name: dockerInfo ? `docker (${dockerInfo.containerName})` : (procDetails ? procDetails.name : (processName || (ip === '127.0.0.53%lo' ? 'systemd-resolved' : 'System Service'))),
+        name: meta.title,
+        title: meta.title,
+        origin: meta.origin,
+        tag: meta.tag,
+        cwd: procDetails ? procDetails.cwd : '',
         command: procDetails ? procDetails.command : (dockerInfo ? `Docker: ${dockerInfo.image}` : ''),
         user: procDetails ? procDetails.user : (dockerInfo ? 'docker' : 'root/system'),
         cpu: procDetails ? procDetails.cpu : (dockerInfo ? dockerInfo.cpu : 0),
@@ -202,7 +307,20 @@ async function scanLinux(processMap, dockerPortMap = new Map()) {
             existing.pid = pid;
             const proc = processMap.get(pid);
             if (proc) {
-              existing.name = proc.name;
+              const meta = resolveProcessMeta({
+                name: proc.name,
+                command: proc.command,
+                cwd: proc.cwd,
+                isDocker: existing.isDocker,
+                dockerContainer: existing.dockerContainer,
+                dockerImage: existing.dockerImage,
+                user: proc.user
+              });
+              existing.name = meta.title;
+              existing.title = meta.title;
+              existing.origin = meta.origin;
+              existing.tag = meta.tag;
+              existing.cwd = proc.cwd;
               existing.command = proc.command;
               existing.user = proc.user;
               existing.cpu = proc.cpu;
@@ -214,6 +332,7 @@ async function scanLinux(processMap, dockerPortMap = new Map()) {
               existing.isSystem = proc.user === 'root';
             } else {
               existing.name = comm;
+              existing.title = comm;
               existing.user = user;
             }
           }

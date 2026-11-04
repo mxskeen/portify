@@ -291,26 +291,29 @@ export default function PortTable({
                     </td>
 
                     {/* Process */}
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-2 max-w-[240px]">
-                        <span className="font-medium text-zinc-200 truncate" title={p.name}>
-                          {p.name || 'Unknown'}
+                    <td 
+                      className="py-2.5 px-4 cursor-pointer"
+                      onClick={() => onInspectProcess(p)}
+                      title="Click to view full command & details"
+                    >
+                      <div className="flex items-center gap-2 max-w-[280px]">
+                        <span className="font-semibold text-zinc-100 text-xs truncate">
+                          {p.title || p.name || 'Unknown'}
                         </span>
                         {p.isDocker ? (
                           <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
                             docker
                           </span>
-                        ) : cat === 'dev' ? (
+                        ) : p.tag === 'dev' || cat === 'dev' ? (
                           <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
                             dev
                           </span>
                         ) : null}
                       </div>
-                      {p.command && (
-                        <div className="text-[11px] font-mono text-zinc-500 truncate max-w-[260px] mt-0.5" title={p.command}>
-                          {p.command}
-                        </div>
-                      )}
+                      <div className="text-[11px] font-mono text-zinc-400 truncate max-w-[280px] mt-0.5 flex items-center gap-1.5" title={p.command}>
+                        <span className="text-zinc-600 text-[10px]">↳</span>
+                        <span className="truncate text-zinc-400">{p.origin || p.cwd || p.command}</span>
+                      </div>
                     </td>
 
                     {/* PID · User */}

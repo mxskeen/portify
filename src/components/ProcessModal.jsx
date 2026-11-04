@@ -79,13 +79,27 @@ export default function ProcessModal({ processData, onClose, onKillPort, onCopyT
             </div>
           </div>
 
-          {/* Start time */}
-          {processData.startTime && (
-            <div className="text-[11px] font-mono text-zinc-400">
-              <span className="text-zinc-600 mr-2">Started:</span>
-              <span>{processData.startTime}</span>
-            </div>
-          )}
+          {/* Start time & Location */}
+          <div className="space-y-1 font-mono text-[11px] text-zinc-400">
+            {processData.origin && (
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 w-16 shrink-0">Location:</span>
+                <span className="text-zinc-200 truncate">{processData.origin}</span>
+              </div>
+            )}
+            {processData.cwd && (
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 w-16 shrink-0">Directory:</span>
+                <span className="text-zinc-200 truncate">{processData.cwd}</span>
+              </div>
+            )}
+            {processData.startTime && (
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 w-16 shrink-0">Started:</span>
+                <span>{processData.startTime}</span>
+              </div>
+            )}
+          </div>
 
           {/* Command line */}
           <div>
