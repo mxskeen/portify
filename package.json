@@ -2,7 +2,7 @@
   "name": "portify",
   "version": "1.0.0",
   "type": "module",
-  "description": "Cross-platform Port & Process Manager with System Tray, Docker & Cloudflare Tunnels",
+  "description": "Local Server & Port Dashboard for Developers",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron . --no-sandbox\"",

@@ -56,7 +56,7 @@ function createMainWindow() {
     height: 820,
     minWidth: 980,
     minHeight: 650,
-    title: 'Portify',
+    title: 'Portify — Local Server & Port Dashboard',
     backgroundColor: '#090a0d',
     show: !startMinimized,
     icon: appIcon,

@@ -239,8 +239,38 @@ export default function SettingsModal({ onClose, onShowToast, dependencies = nul
             </div>
           </div>
 
+          {/* About & GitHub */}
+          <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px]">
+            <span className="text-zinc-500">
+              Created by{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.api && window.api.openExternal) {
+                    window.api.openExternal('https://github.com/mxskeen');
+                  }
+                }}
+                className="text-zinc-300 hover:text-emerald-400 font-medium transition cursor-pointer"
+              >
+                @mxskeen
+              </button>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.api && window.api.openExternal) {
+                  window.api.openExternal('https://github.com/mxskeen/portify');
+                }
+              }}
+              className="text-zinc-400 hover:text-white flex items-center gap-1 font-mono text-[10px] transition cursor-pointer"
+            >
+              <span>github.com/mxskeen/portify</span>
+            </button>
+          </div>
+
           {systemInfo && (
-            <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-zinc-500">
+            <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-zinc-500">
               <span>{systemInfo.hostname} ({systemInfo.platform})</span>
               <span>{systemInfo.cpus} CPU cores</span>
             </div>
