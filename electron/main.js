@@ -121,17 +121,27 @@ function createMainWindow() {
   });
 }
 
-function updateTrayMenu() {
+let lastTraySignature = '';
+
+function updateTrayMenu(force = false) {
   if (!tray) return;
 
   const tunnels = tunnelManager.getTunnelsList().filter(t => t.status === 'active');
   const autostartActive = isAutostartEnabled();
+  const signature = `${lastPortCount}|${lastDockerCount}|${tunnels.length}|${autostartActive}`;
+
+  // Avoid resetting DBus tray context menu if data didn't change
+  if (!force && signature === lastTraySignature) {
+    return;
+  }
+  lastTraySignature = signature;
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Open Portify Dashboard',
       click: () => {
-        if (mainWindow) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
           mainWindow.show();
           mainWindow.focus();
         }
@@ -157,7 +167,7 @@ function updateTrayMenu() {
       checked: autostartActive,
       click: (item) => {
         setAutostart(item.checked, true);
-        updateTrayMenu();
+        updateTrayMenu(true);
       }
     },
     { type: 'separator' },
@@ -182,32 +192,44 @@ function createTray() {
   tray = new Tray(icon);
   tray.setToolTip('Portify - System Port & Docker Monitor');
 
-  tray.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
+  // On Windows/macOS, left click toggles window
+  // On Linux (GNOME/AppIndicator), left-click natively opens the context menu
+  if (process.platform !== 'linux') {
+    tray.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
       }
-    }
-  });
+    });
+  }
 
   tray.on('double-click', () => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
   });
 
-  updateTrayMenu();
+  updateTrayMenu(true);
 }
 
 app.on('second-instance', () => {
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
+    // Bring window to foreground across Linux, Windows and macOS
+    try {
+      mainWindow.setAlwaysOnTop(true);
+      mainWindow.setAlwaysOnTop(false);
+    } catch (e) {}
+  } else {
+    createMainWindow();
   }
 });
 

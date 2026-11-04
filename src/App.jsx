@@ -115,14 +115,25 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fetchData]);
 
-  // Interval timer
+  // Interval timer (paused when window is hidden/minimized to prevent tray menu flickering)
   useEffect(() => {
     if (refreshRate <= 0) return;
     const interval = setInterval(() => {
+      if (document.hidden) return;
       fetchData(false);
     }, refreshRate);
 
-    return () => clearInterval(interval);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchData(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [refreshRate, fetchData]);
 
   const handleCopyText = (text) => {
