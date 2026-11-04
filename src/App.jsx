@@ -5,6 +5,8 @@ import DockerView from './components/DockerView';
 import TunnelDrawer from './components/TunnelDrawer';
 import ProcessModal from './components/ProcessModal';
 import SettingsModal from './components/SettingsModal';
+import ElevatedKillModal from './components/ElevatedKillModal';
+import OnboardingModal from './components/OnboardingModal';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -15,7 +17,11 @@ export default function App() {
   const [refreshRate, setRefreshRate] = useState(3000); // 3s default
   const [loading, setLoading] = useState(false);
   const [inspectProcess, setInspectProcess] = useState(null);
+  const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('portify_onboarding_v1');
+  });
   const [toasts, setToasts] = useState([]);
 
   const addToast = useCallback((type, title, message) => {
@@ -108,24 +114,49 @@ export default function App() {
   };
 
   const handleKillPort = async (portObj) => {
+    // If it's a root process and no elevated flag yet, prompt for elevation
+    if (portObj.user === 'root' && !portObj.forceElevated) {
+      setElevatedTarget(portObj);
+      return;
+    }
+
     try {
       const result = await window.api.killProcess({
         port: portObj.port,
         pid: portObj.pid,
         isDocker: portObj.isDocker,
         dockerContainer: portObj.dockerContainer,
-        forceElevated: portObj.forceElevated || false
+        forceElevated: portObj.forceElevated || false,
+        sudoPassword: portObj.sudoPassword || ''
       });
 
       if (result.success) {
         addToast('success', 'Killed', result.message);
         await fetchData(false);
       } else {
-        addToast(result.needsElevation ? 'warning' : 'error', 'Kill Failed', result.error || result.message);
+        if (result.needsElevation) {
+          setElevatedTarget(portObj);
+        } else {
+          addToast('error', 'Kill Failed', result.error || result.message);
+        }
       }
     } catch (err) {
       addToast('error', 'Error', err.message);
     }
+  };
+
+  const handleEnableOnboarding = async () => {
+    localStorage.setItem('portify_onboarding_v1', 'true');
+    setShowOnboarding(false);
+    try {
+      await window.api.setAutostart(true, true);
+      addToast('success', 'Autostart Enabled', 'Portify will launch in background system tray on boot.');
+    } catch (e) {}
+  };
+
+  const handleDismissOnboarding = () => {
+    localStorage.setItem('portify_onboarding_v1', 'true');
+    setShowOnboarding(false);
   };
 
   const handleStartTunnel = async (port) => {
@@ -262,6 +293,23 @@ export default function App() {
         <SettingsModal
           onClose={() => setSettingsOpen(false)}
           onShowToast={addToast}
+        />
+      )}
+
+      {/* Root/Sudo Elevated Kill Modal */}
+      {elevatedTarget && (
+        <ElevatedKillModal
+          target={elevatedTarget}
+          onClose={() => setElevatedTarget(null)}
+          onExecuteKill={handleKillPort}
+        />
+      )}
+
+      {/* First-time Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal
+          onEnable={handleEnableOnboarding}
+          onDismiss={handleDismissOnboarding}
         />
       )}
 

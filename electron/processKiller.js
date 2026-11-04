@@ -105,7 +105,7 @@ async function findPidsForPort(port) {
 /**
  * Guaranteed multi-stage tree kill for processes
  */
-export async function killPortProcess({ port, pid, isDocker, dockerContainer, forceElevated = false }) {
+export async function killPortProcess({ port, pid, isDocker, dockerContainer, forceElevated = false, sudoPassword = '' }) {
   // Case 1: Docker container bound port
   if (isDocker && dockerContainer) {
     try {
@@ -146,31 +146,80 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
 
   const platform = process.platform;
 
+  // Handle explicit sudo / elevated kill immediately if requested or password provided
+  if (forceElevated || sudoPassword) {
+    for (const targetPid of targetPids) {
+      if (platform === 'linux') {
+        if (sudoPassword) {
+          try {
+            // Use sudo -S with password input
+            const safePwd = sudoPassword.replace(/"/g, '\\"');
+            await execAsync(`echo "${safePwd}" | sudo -S kill -9 ${targetPid}`);
+            if (port) {
+              try { await execAsync(`echo "${safePwd}" | sudo -S fuser -k -9 ${port}/tcp`); } catch (e) {}
+            }
+          } catch (sudoErr) {
+            return {
+              success: false,
+              needsElevation: true,
+              error: `Incorrect sudo password or elevation failed: ${sudoErr.message}`
+            };
+          }
+        } else {
+          // Try pkexec graphical dialog
+          try {
+            await execAsync(`pkexec kill -9 ${targetPid}`);
+            if (port) {
+              try { await execAsync(`pkexec fuser -k -9 ${port}/tcp`); } catch (e) {}
+            }
+          } catch (pkErr) {
+            return {
+              success: false,
+              needsElevation: true,
+              error: `Root authorization cancelled or failed: ${pkErr.message}`
+            };
+          }
+        }
+      } else if (platform === 'darwin') {
+        try {
+          await execAsync(`osascript -e 'do shell script "kill -9 ${targetPid}" with administrator privileges'`);
+        } catch (macErr) {
+          return { success: false, needsElevation: true, error: macErr.message };
+        }
+      } else if (platform === 'win32') {
+        try {
+          await execAsync(`powershell -Command "Start-Process taskkill -ArgumentList '/F /T /PID ${targetPid}' -Verb RunAs -Wait"`);
+        } catch (winErr) {
+          return { success: false, needsElevation: true, error: winErr.message };
+        }
+      }
+    }
+
+    await sleep(250);
+    return {
+      success: true,
+      message: `Port ${port || targetPids[0]} force-killed with administrative privileges.`
+    };
+  }
+
   for (const targetPid of targetPids) {
     if (platform === 'win32') {
       try {
         // Force tree kill on Windows
         await execAsync(`taskkill /F /T /PID ${targetPid}`);
       } catch (err) {
-        if (forceElevated) {
-          try {
-            await execAsync(`powershell -Command "Start-Process taskkill -ArgumentList '/F /T /PID ${targetPid}' -Verb RunAs -Wait"`);
-          } catch (elevErr) {
-            return { success: false, error: `Elevated kill failed: ${elevErr.message}` };
-          }
-        } else {
-          return {
-            success: false,
-            needsElevation: true,
-            error: `Permission denied killing PID ${targetPid}. Try killing with Administrator privileges.`
-          };
-        }
+        return {
+          success: false,
+          needsElevation: true,
+          targetPid,
+          port,
+          error: `Permission denied killing PID ${targetPid}. Administrator privileges required.`
+        };
       }
     } else {
       // Unix: Linux / macOS
       // Phase 1: Graceful SIGTERM with child tree kill
       try {
-        // Get child processes
         try {
           const { stdout: childOut } = await execAsync(`pgrep -P ${targetPid}`);
           const childPids = childOut.trim().split('\n').filter(Boolean);
@@ -180,47 +229,29 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
         } catch (e) {}
 
         process.kill(targetPid, 'SIGTERM');
-      } catch (e) {
-        // May already be dead or permission denied
-      }
+      } catch (e) {}
 
-      // Wait 300ms to allow graceful cleanup
-      await sleep(300);
+      await sleep(250);
 
-      // Phase 2: If still alive, FORCE SIGKILL (signal 9)
+      // Phase 2: If still alive, FORCE SIGKILL
       if (isProcessAlive(targetPid)) {
         try {
-          // Kill children with SIGKILL
-          try {
-            await execAsync(`pkill -9 -P ${targetPid}`);
-          } catch (e) {}
-
+          try { await execAsync(`pkill -9 -P ${targetPid}`); } catch (e) {}
           process.kill(targetPid, 'SIGKILL');
         } catch (err) {
           if (err.code === 'EPERM') {
-            if (forceElevated) {
-              // Try pkexec
-              try {
-                await execAsync(`pkexec kill -9 ${targetPid}`);
-              } catch (pkErr) {
-                return {
-                  success: false,
-                  needsElevation: true,
-                  error: `Root authentication failed: ${pkErr.message}`
-                };
-              }
-            } else {
-              return {
-                success: false,
-                needsElevation: true,
-                error: `Permission denied. PID ${targetPid} is owned by another user (e.g. root/system). Use Force Elevated Kill.`
-              };
-            }
+            return {
+              success: false,
+              needsElevation: true,
+              targetPid,
+              port,
+              error: `Permission denied. PID ${targetPid} is owned by root/system.`
+            };
           }
         }
       }
 
-      // Phase 3: Port socket sweep via fuser / lsof
+      // Phase 3: Port socket sweep
       if (port) {
         try {
           await execAsync(`fuser -k -9 ${port}/tcp 2>/dev/null`);
@@ -229,17 +260,17 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
     }
   }
 
-  // Verification step: give OS 200ms to unbind socket
   await sleep(250);
 
-  // Check if port is still occupied
   if (port) {
     const stillActive = await isPortInUse(port);
     if (stillActive) {
       return {
         success: false,
-        portStillOccupied: true,
-        message: `Signal sent, but port ${port} is still responding. It might be respawned by a supervisor (like systemd/nodemon) or owned by root.`
+        needsElevation: true,
+        targetPid: targetPids[0],
+        port,
+        message: `Port ${port} is still occupied. It is likely protected by root or a system daemon.`
       };
     }
   }
