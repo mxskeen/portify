@@ -239,26 +239,14 @@ export default function App() {
 
   if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#090a0d] text-zinc-100 select-none animate-in fade-in duration-200">
-        <div className="relative mb-4">
-          <img
-            src="./icon.png"
-            alt="Portify"
-            className="w-16 h-16 rounded-2xl shadow-2xl object-contain ring-1 ring-white/10"
-          />
-          <div className="absolute -inset-1 rounded-2xl border border-emerald-500/20 animate-pulse pointer-events-none" />
-        </div>
-
-        <h1 className="text-sm font-semibold tracking-tight text-zinc-100 mb-1">
-          Portify
-        </h1>
-        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-          <span>Scanning ports & Docker services...</span>
-        </div>
-
-        <div className="w-28 h-[1.5px] bg-white/[0.08] rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-400 rounded-full w-2/3 animate-pulse" />
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#090a0d] text-zinc-100 select-none animate-in fade-in duration-150">
+        <img
+          src="./icon.png"
+          alt="Portify"
+          className="w-24 h-24 object-contain mb-8 drop-shadow-2xl"
+        />
+        <div className="w-32 h-[2px] bg-white/[0.08] rounded-full overflow-hidden relative">
+          <div className="h-full bg-emerald-400 rounded-full w-1/2 animate-indeterminate" />
         </div>
       </div>
     );

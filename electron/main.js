@@ -7,7 +7,7 @@ import { scanAllPorts } from './portScanner.js';
 import { getDockerContainers, stopContainer, killContainer, restartContainer } from './dockerScanner.js';
 import { killPortProcess } from './processKiller.js';
 import { tunnelManager } from './tunnelManager.js';
-import { isAutostartEnabled, setAutostart } from './autostart.js';
+import { isAutostartEnabled, setAutostart, ensureLinuxDesktopIntegration } from './autostart.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,7 +21,14 @@ if (!gotTheLock) {
 app.setName('Portify');
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.maskeen.portify');
+} else if (process.platform === 'linux') {
+  if (typeof app.setDesktopName === 'function') {
+    app.setDesktopName('portify.desktop');
+  }
 }
+
+const appIconPath = path.join(__dirname, 'assets', 'icon-512.png');
+const appIcon = nativeImage.createFromPath(appIconPath);
 
 let mainWindow = null;
 let tray = null;
@@ -41,7 +48,7 @@ function createMainWindow() {
     title: 'Portify',
     backgroundColor: '#090a0d',
     show: !startMinimized,
-    icon: path.join(__dirname, 'assets', 'icon-512.png'),
+    icon: appIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -49,6 +56,10 @@ function createMainWindow() {
       sandbox: false
     }
   });
+
+  if (process.platform === 'linux') {
+    mainWindow.setIcon(appIcon);
+  }
 
   // Hide default menu bar for sleek modern look
   mainWindow.setMenuBarVisibility(false);
@@ -166,6 +177,9 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
+  if (process.platform === 'linux') {
+    ensureLinuxDesktopIntegration();
+  }
   createTray();
   createMainWindow();
 

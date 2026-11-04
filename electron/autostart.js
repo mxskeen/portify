@@ -13,8 +13,51 @@ const SYSTEMD_USER_DIR = path.join(os.homedir(), '.config', 'systemd', 'user');
 const SYSTEMD_SERVICE_FILE = path.join(SYSTEMD_USER_DIR, 'portify.service');
 
 /**
- * Check if autostart on system boot is enabled
+ * Ensure Linux desktop integration and icon association
  */
+export function ensureLinuxDesktopIntegration() {
+  if (process.platform !== 'linux') return;
+  try {
+    const appsDir = path.join(os.homedir(), '.local', 'share', 'applications');
+    if (!fs.existsSync(appsDir)) fs.mkdirSync(appsDir, { recursive: true });
+
+    const projectDir = path.resolve(__dirname, '..');
+    const iconPath = path.join(__dirname, 'assets', 'icon-512.png');
+    let execCmd = '';
+    if (process.env.APPIMAGE) {
+      execCmd = `${process.env.APPIMAGE} %U`;
+    } else if (app.isPackaged) {
+      execCmd = `${process.execPath} %U`;
+    } else {
+      execCmd = `${process.execPath} "${projectDir}" --no-sandbox %U`;
+    }
+
+    const content = `[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Portify
+GenericName=Port & Process Manager
+Comment=Port & Docker Manager running quietly in system tray
+Exec=${execCmd}
+Icon=${iconPath}
+Terminal=false
+Categories=Utility;Development;
+StartupNotify=true
+StartupWMClass=Portify
+`;
+    fs.writeFileSync(path.join(appsDir, 'portify.desktop'), content, 'utf8');
+    fs.writeFileSync(path.join(appsDir, 'Portify.desktop'), content, 'utf8');
+
+    // Run database update asynchronously
+    import('child_process').then(({ exec }) => {
+      exec(`update-desktop-database "${appsDir}" 2>/dev/null || true`);
+      exec(`gtk-update-icon-cache -f -t "${path.join(os.homedir(), '.local', 'share', 'icons', 'hicolor')}" 2>/dev/null || true`);
+    });
+  } catch (err) {
+    console.error('ensureLinuxDesktopIntegration error:', err);
+  }
+}
+
 export function isAutostartEnabled() {
   if (process.platform === 'linux') {
     return fs.existsSync(LINUX_DESKTOP_FILE) || fs.existsSync(SYSTEMD_SERVICE_FILE);
