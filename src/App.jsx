@@ -277,38 +277,40 @@ export default function App() {
 
       {/* Main View */}
       <main className="flex-1 overflow-hidden relative">
-        {activeTab === 'ports' && (
-          <PortTable
-            ports={ports}
-            tunnels={tunnels}
-            searchQuery={searchQuery}
-            onUpdateSearch={setSearchQuery}
-            onOpenSearchModal={() => setSearchModalOpen(true)}
-            onKillPort={handleKillPort}
-            onStartTunnel={handleStartTunnel}
-            onStopTunnel={handleStopTunnel}
-            onInspectProcess={(p) => setInspectProcess(p)}
-            onCopyText={handleCopyText}
-          />
-        )}
+        <div key={activeTab} className="h-full w-full animate-in fade-in duration-150">
+          {activeTab === 'ports' && (
+            <PortTable
+              ports={ports}
+              tunnels={tunnels}
+              searchQuery={searchQuery}
+              onUpdateSearch={setSearchQuery}
+              onOpenSearchModal={() => setSearchModalOpen(true)}
+              onKillPort={handleKillPort}
+              onStartTunnel={handleStartTunnel}
+              onStopTunnel={handleStopTunnel}
+              onInspectProcess={(p) => setInspectProcess(p)}
+              onCopyText={handleCopyText}
+            />
+          )}
 
-        {activeTab === 'docker' && (
-          <DockerView
-            dockerResult={dockerResult}
-            onStopContainer={handleStopContainer}
-            onKillContainer={handleKillContainer}
-            onRestartContainer={handleRestartContainer}
-            onStartTunnel={handleStartTunnel}
-          />
-        )}
+          {activeTab === 'docker' && (
+            <DockerView
+              dockerResult={dockerResult}
+              onStopContainer={handleStopContainer}
+              onKillContainer={handleKillContainer}
+              onRestartContainer={handleRestartContainer}
+              onStartTunnel={handleStartTunnel}
+            />
+          )}
 
-        {activeTab === 'tunnels' && (
-          <TunnelDrawer
-            tunnels={tunnels}
-            onStopTunnel={handleStopTunnel}
-            onCopyText={handleCopyText}
-          />
-        )}
+          {activeTab === 'tunnels' && (
+            <TunnelDrawer
+              tunnels={tunnels}
+              onStopTunnel={handleStopTunnel}
+              onCopyText={handleCopyText}
+            />
+          )}
+        </div>
       </main>
 
       {/* Quick Search Spotlight Modal with Backdrop */}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { 
   Search, 
   Terminal, 
@@ -42,6 +42,21 @@ export default function PortTable({
   const [sortAsc, setSortAsc] = useState(true);
   const [killingPort, setKillingPort] = useState(null);
   const [copiedPort, setCopiedPort] = useState(null);
+
+  const categoryContainerRef = useRef(null);
+  const [categoryPillStyle, setCategoryPillStyle] = useState({ left: 0, width: 0, ready: false });
+
+  useLayoutEffect(() => {
+    if (!categoryContainerRef.current) return;
+    const activeBtn = categoryContainerRef.current.querySelector(`[data-cat="${category}"]`);
+    if (activeBtn) {
+      setCategoryPillStyle({
+        left: activeBtn.offsetLeft,
+        width: activeBtn.offsetWidth,
+        ready: true
+      });
+    }
+  }, [category]);
 
   const tunnelMap = useMemo(() => {
     const map = new Map();
@@ -181,8 +196,22 @@ export default function PortTable({
           </div>
         </div>
 
-        {/* Category Filter Pills (Centered directly underneath navigation tabs) */}
-        <div className="justify-self-center flex items-center p-0.5 bg-[#14171d] border border-white/[0.06] rounded-lg shadow-sm">
+        {/* Category Filter Pills (Centered directly underneath navigation tabs with smooth sliding pill) */}
+        <div 
+          ref={categoryContainerRef}
+          className="justify-self-center relative flex items-center p-0.5 bg-[#14171d] border border-white/[0.06] rounded-lg shadow-sm"
+        >
+          {/* Smooth Gliding Indicator Pill */}
+          {categoryPillStyle.ready && (
+            <div 
+              className="absolute top-0.5 bottom-0.5 bg-[#222733] border border-white/[0.08] shadow-sm rounded-md transition-all duration-200 ease-out pointer-events-none"
+              style={{ 
+                left: `${categoryPillStyle.left}px`, 
+                width: `${categoryPillStyle.width}px` 
+              }}
+            />
+          )}
+
           {[
             { id: 'all', label: 'All' },
             { id: 'dev', label: 'Dev' },
@@ -194,11 +223,12 @@ export default function PortTable({
             return (
               <button
                 key={item.id}
+                data-cat={item.id}
                 onClick={() => setCategory(item.id)}
-                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`relative z-10 px-3 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 ${
                   active
-                    ? 'bg-[#222733] text-zinc-100 shadow-sm border border-white/[0.08]'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+                    ? 'text-zinc-100'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {item.label}
@@ -275,7 +305,7 @@ export default function PortTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody key={category} className="divide-y divide-white/[0.04] animate-in fade-in duration-150">
             {filteredPorts.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-20 text-zinc-500">

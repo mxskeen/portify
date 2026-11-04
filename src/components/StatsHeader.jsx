@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useLayoutEffect } from 'react';
 import { 
   RefreshCw, 
   Settings, 
@@ -21,6 +21,21 @@ export default function StatsHeader({
   onOpenSettings,
   onMinimizeToTray
 }) {
+  const containerRef = useRef(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, ready: false });
+
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const activeBtn = containerRef.current.querySelector(`[data-tab="${activeTab}"]`);
+    if (activeBtn) {
+      setIndicatorStyle({
+        left: activeBtn.offsetLeft,
+        width: activeBtn.offsetWidth,
+        ready: true
+      });
+    }
+  }, [activeTab, portsCount, dockerCount, tunnelsCount]);
+
   return (
     <header className="h-12 px-4 bg-[#0d0f13] border-b border-white/[0.07] grid grid-cols-[1fr_auto_1fr] items-center select-none shrink-0 relative overflow-hidden">
       {/* Live Green Conduit Line spanning from Portify through tabs to right edge */}
@@ -40,19 +55,34 @@ export default function StatsHeader({
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981] -mr-1" />
       </div>
 
-      {/* Segmented Navigation - line passes directly through this center section */}
-      <div className="justify-self-center relative z-10 flex items-center p-0.5 bg-[#14171d]/90 backdrop-blur-md border border-white/[0.08] rounded-lg shadow-sm">
+      {/* Segmented Navigation - with smooth sliding pill */}
+      <div 
+        ref={containerRef}
+        className="justify-self-center relative z-10 flex items-center p-0.5 bg-[#14171d]/90 backdrop-blur-md border border-white/[0.08] rounded-lg shadow-sm"
+      >
+        {/* Smooth Gliding Indicator Pill */}
+        {indicatorStyle.ready && (
+          <div 
+            className="absolute top-0.5 bottom-0.5 bg-[#222733] border border-white/[0.08] shadow-sm rounded-md transition-all duration-200 ease-out pointer-events-none"
+            style={{ 
+              left: `${indicatorStyle.left}px`, 
+              width: `${indicatorStyle.width}px` 
+            }}
+          />
+        )}
+
         <button
+          data-tab="ports"
           onClick={() => setActiveTab('ports')}
-          className={`flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+          className={`relative z-10 flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-colors duration-150 ${
             activeTab === 'ports'
-              ? 'bg-[#222733] text-zinc-100 shadow-sm border border-white/[0.08]'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+              ? 'text-zinc-100'
+              : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Radio className="w-3.5 h-3.5 opacity-70" />
           <span>Ports</span>
-          <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${
+          <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] transition-colors duration-150 ${
             activeTab === 'ports' ? 'bg-white/10 text-zinc-200' : 'bg-white/5 text-zinc-400'
           }`}>
             {portsCount}
@@ -60,16 +90,17 @@ export default function StatsHeader({
         </button>
 
         <button
+          data-tab="docker"
           onClick={() => setActiveTab('docker')}
-          className={`flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+          className={`relative z-10 flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-colors duration-150 ${
             activeTab === 'docker'
-              ? 'bg-[#222733] text-zinc-100 shadow-sm border border-white/[0.08]'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+              ? 'text-zinc-100'
+              : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Box className="w-3.5 h-3.5 opacity-70" />
           <span>Docker</span>
-          <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${
+          <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] transition-colors duration-150 ${
             activeTab === 'docker' ? 'bg-white/10 text-zinc-200' : 'bg-white/5 text-zinc-400'
           }`}>
             {dockerCount}
@@ -77,11 +108,12 @@ export default function StatsHeader({
         </button>
 
         <button
+          data-tab="tunnels"
           onClick={() => setActiveTab('tunnels')}
-          className={`flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+          className={`relative z-10 flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-colors duration-150 ${
             activeTab === 'tunnels'
-              ? 'bg-[#222733] text-zinc-100 shadow-sm border border-white/[0.08]'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+              ? 'text-zinc-100'
+              : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Globe className="w-3.5 h-3.5 opacity-70" />
