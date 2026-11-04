@@ -19,6 +19,7 @@ export default function App() {
   const [inspectProcess, setInspectProcess] = useState(null);
   const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem('portify_onboarding_v1');
   });
@@ -68,7 +69,14 @@ export default function App() {
 
   // Initial load & interval polling
   useEffect(() => {
-    fetchData(true);
+    const startTime = Date.now();
+    fetchData(true).finally(() => {
+      const elapsed = Date.now() - startTime;
+      const minDisplayTime = 500;
+      setTimeout(() => {
+        setInitialLoading(false);
+      }, Math.max(0, minDisplayTime - elapsed));
+    });
 
     let unsubscribeTunnels = () => {};
     if (window.api && window.api.onTunnelUpdate) {
@@ -228,6 +236,33 @@ export default function App() {
 
   const activeTunnelsCount = tunnels.filter((t) => t.status === 'active').length;
   const runningDockerCount = (dockerResult.containers || []).filter((c) => c.state === 'running').length;
+
+  if (initialLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#090a0d] text-zinc-100 select-none animate-in fade-in duration-200">
+        <div className="relative mb-4">
+          <img
+            src="./icon.png"
+            alt="Portify"
+            className="w-16 h-16 rounded-2xl shadow-2xl object-contain ring-1 ring-white/10"
+          />
+          <div className="absolute -inset-1 rounded-2xl border border-emerald-500/20 animate-pulse pointer-events-none" />
+        </div>
+
+        <h1 className="text-sm font-semibold tracking-tight text-zinc-100 mb-1">
+          Portify
+        </h1>
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-500 mb-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+          <span>Scanning ports & Docker services...</span>
+        </div>
+
+        <div className="w-28 h-[1.5px] bg-white/[0.08] rounded-full overflow-hidden">
+          <div className="h-full bg-emerald-400 rounded-full w-2/3 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#090a0d] text-zinc-100 antialiased font-sans">

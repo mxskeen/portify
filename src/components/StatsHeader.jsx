@@ -28,9 +28,11 @@ export default function StatsHeader({
 
       {/* Brand (Origin point of the green line) */}
       <div className="flex items-center gap-2.5 z-10 bg-[#0d0f13] pr-2.5">
-        <div className="w-5 h-5 rounded-md bg-white/[0.08] border border-white/[0.12] flex items-center justify-center text-zinc-200">
-          <Radio className="w-3 h-3 text-zinc-300" />
-        </div>
+        <img 
+          src="./icon.png" 
+          alt="Portify" 
+          className="w-5 h-5 rounded-[4px] object-contain shadow-sm" 
+        />
         <span className="font-semibold text-sm tracking-tight text-zinc-100">
           Portify
         </span>

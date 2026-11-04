@@ -18,6 +18,11 @@ if (!gotTheLock) {
   app.quit();
 }
 
+app.setName('Portify');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.maskeen.portify');
+}
+
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
@@ -33,10 +38,10 @@ function createMainWindow() {
     height: 820,
     minWidth: 980,
     minHeight: 650,
-    title: 'Portify - Port & Process Manager',
-    backgroundColor: '#090d16',
+    title: 'Portify',
+    backgroundColor: '#090a0d',
     show: !startMinimized,
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: path.join(__dirname, 'assets', 'icon-512.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
