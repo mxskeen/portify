@@ -402,8 +402,16 @@ export default function PortTable({
                     <td className="py-2.5 px-4 text-center">
                       {isTunnelActive ? (
                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#12151b] border border-emerald-500/30 text-emerald-300 text-[11px] font-mono">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="truncate max-w-[110px]" title={tunnel.url}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span 
+                            onClick={() => {
+                              if (window.api && window.api.openExternal) {
+                                window.api.openExternal(tunnel.url);
+                              }
+                            }}
+                            className="truncate max-w-[110px] cursor-pointer hover:underline hover:text-white" 
+                            title={`Click to open ${tunnel.url} in browser`}
+                          >
                             {tunnel.url.replace('https://', '')}
                           </span>
                           <button

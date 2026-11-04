@@ -77,14 +77,18 @@ export default function TunnelDrawer({ tunnels = [], onStopTunnel, onCopyText })
                     }`} />
 
                     {tunnel.url ? (
-                      <a 
-                        href={tunnel.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-mono text-xs text-zinc-300 hover:text-white hover:underline truncate max-w-md"
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (window.api && window.api.openExternal) {
+                            window.api.openExternal(tunnel.url);
+                          }
+                        }}
+                        title="Click to open URL in your default browser"
+                        className="font-mono text-xs text-zinc-300 hover:text-white hover:underline truncate max-w-md text-left cursor-pointer"
                       >
                         {tunnel.url}
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-[11px] font-mono text-zinc-500">
                         {tunnel.error || 'Initializing quick tunnel...'}

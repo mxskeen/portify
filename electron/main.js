@@ -64,6 +64,19 @@ function createMainWindow() {
   // Hide default menu bar for sleek modern look
   mainWindow.setMenuBarVisibility(false);
 
+  // Always open external links in default OS browser (Chrome, Firefox, etc.) instead of inside Electron
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('http://localhost') && !url.startsWith('file://')) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     // mainWindow.webContents.openDevTools();
