@@ -53,6 +53,8 @@ export default function SettingsModal({ onClose, onShowToast }) {
     }
   };
 
+  const isMac = platform === 'darwin' || (typeof navigator !== 'undefined' && /mac/i.test(navigator.userAgent));
+
   return (
     <div 
       onClick={onClose}
@@ -100,6 +102,64 @@ export default function SettingsModal({ onClose, onShowToast }) {
                 }`}
               />
             </button>
+          </div>
+
+          {/* Hotkeys Section */}
+          <div className="p-3 rounded-lg bg-black/40 border border-white/[0.06] space-y-2">
+            <div className="flex items-center justify-between pb-1.5 border-b border-white/[0.05]">
+              <div className="font-medium text-zinc-200">Hotkeys</div>
+              <span className="text-[10px] font-mono text-zinc-500">Keyboard Shortcuts</span>
+            </div>
+
+            <div className="space-y-1.5 pt-0.5 text-[11px]">
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-400">Quick Search</span>
+                <div className="flex items-center gap-1 font-mono text-[10px]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    {isMac ? '⌘' : 'Ctrl'}
+                  </kbd>
+                  <span className="text-zinc-600">+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    F
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-400">Refresh Scan</span>
+                <div className="flex items-center gap-1 font-mono text-[10px]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    {isMac ? '⌘' : 'Ctrl'}
+                  </kbd>
+                  <span className="text-zinc-600">+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    R
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-400">Dismiss / Close Modals</span>
+                <div className="flex items-center gap-1 font-mono text-[10px]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    Esc
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-1">
+                <span className="text-zinc-400">Minimize to Tray</span>
+                <div className="flex items-center gap-1 font-mono text-[10px]">
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    {isMac ? '⌘' : 'Ctrl'}
+                  </kbd>
+                  <span className="text-zinc-600">+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] border border-white/[0.1] text-zinc-200">
+                    W
+                  </kbd>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* System tray info */}

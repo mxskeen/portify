@@ -21,13 +21,22 @@ import {
 export default function PortTable({ 
   ports = [], 
   tunnels = [], 
+  searchQuery,
+  onUpdateSearch,
+  onOpenSearchModal,
   onKillPort, 
   onStartTunnel, 
   onStopTunnel, 
   onInspectProcess,
   onCopyText
 }) {
-  const [search, setSearch] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const search = searchQuery !== undefined ? searchQuery : internalSearch;
+  const setSearch = (val) => {
+    if (onUpdateSearch) onUpdateSearch(val);
+    else setInternalSearch(val);
+  };
+
   const [category, setCategory] = useState('all');
   const [sortField, setSortField] = useState('port');
   const [sortAsc, setSortAsc] = useState(true);
@@ -137,24 +146,39 @@ export default function PortTable({
     <div className="flex flex-col h-full bg-[#090a0d]">
       {/* Sub-toolbar: Search & Category Pills */}
       <div className="px-4 py-2.5 bg-[#0e1014] border-b border-white/[0.06] flex items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        {/* Search Bar Trigger */}
+        <div 
+          onClick={onOpenSearchModal}
+          className="relative flex-1 max-w-sm cursor-pointer group"
+          title="Click to search or press Ctrl+F"
+        >
+          <Search className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400 absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" />
           <input
             type="text"
+            readOnly
             placeholder="Search port (e.g. 8000), process, or PID..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#14171d] border border-white/[0.07] rounded-md pl-8 pr-3 py-1 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition font-mono"
+            className="w-full bg-[#14171d] border border-white/[0.07] group-hover:border-white/20 rounded-md pl-8 pr-16 py-1 text-xs text-zinc-100 placeholder:text-zinc-500 cursor-pointer transition font-mono select-none"
           />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
-            >
-              ×
-            </button>
-          )}
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {search ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearch('');
+                }}
+                className="text-zinc-500 hover:text-zinc-300 px-1 text-xs leading-none"
+                title="Clear filter"
+              >
+                ×
+              </button>
+            ) : (
+              <kbd className="px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[9px] font-mono text-zinc-500 pointer-events-none">
+                Ctrl+F
+              </kbd>
+            )}
+          </div>
         </div>
 
         {/* Category Filter Pills */}

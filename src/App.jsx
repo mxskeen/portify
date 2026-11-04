@@ -7,6 +7,7 @@ import ProcessModal from './components/ProcessModal';
 import SettingsModal from './components/SettingsModal';
 import ElevatedKillModal from './components/ElevatedKillModal';
 import OnboardingModal from './components/OnboardingModal';
+import QuickSearchModal from './components/QuickSearchModal';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -14,6 +15,8 @@ export default function App() {
   const [ports, setPorts] = useState([]);
   const [dockerResult, setDockerResult] = useState({ available: false, containers: [] });
   const [tunnels, setTunnels] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [refreshRate, setRefreshRate] = useState(3000); // 3s default
   const [loading, setLoading] = useState(false);
   const [inspectProcess, setInspectProcess] = useState(null);
@@ -90,12 +93,15 @@ export default function App() {
     };
   }, [fetchData]);
 
-  // Global keyboard shortcuts: Ctrl+R / Cmd+R to refresh scan
+  // Global keyboard shortcuts: Ctrl+R / Cmd+R to refresh scan, Ctrl+F / Cmd+F to open search
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         fetchData(true);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -275,6 +281,9 @@ export default function App() {
           <PortTable
             ports={ports}
             tunnels={tunnels}
+            searchQuery={searchQuery}
+            onUpdateSearch={setSearchQuery}
+            onOpenSearchModal={() => setSearchModalOpen(true)}
             onKillPort={handleKillPort}
             onStartTunnel={handleStartTunnel}
             onStopTunnel={handleStopTunnel}
@@ -301,6 +310,20 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Quick Search Spotlight Modal with Backdrop */}
+      <QuickSearchModal
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        ports={ports}
+        tunnels={tunnels}
+        searchQuery={searchQuery}
+        onUpdateSearch={setSearchQuery}
+        onSelectPort={(port) => {
+          setActiveTab('ports');
+          setInspectProcess(port);
+        }}
+      />
 
       {/* Modals & Overlays */}
       {inspectProcess && (
