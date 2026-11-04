@@ -45,8 +45,13 @@ Categories=Utility;Development;
 StartupNotify=true
 StartupWMClass=Portify
 `;
+    // Clean up legacy/duplicate desktop file if it exists
+    const duplicatePath = path.join(appsDir, 'Portify.desktop');
+    if (fs.existsSync(duplicatePath)) {
+      try { fs.unlinkSync(duplicatePath); } catch (e) {}
+    }
+
     fs.writeFileSync(path.join(appsDir, 'portify.desktop'), content, 'utf8');
-    fs.writeFileSync(path.join(appsDir, 'Portify.desktop'), content, 'utf8');
 
     // Run database update asynchronously
     import('child_process').then(({ exec }) => {

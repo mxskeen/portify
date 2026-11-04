@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { getCloudflaredPath } from './dependencyManager.js';
 
 class TunnelManager {
   constructor() {
@@ -32,6 +33,16 @@ class TunnelManager {
   }
 
   async startTunnel(port, customHost = '127.0.0.1') {
+    const binPath = await getCloudflaredPath();
+    if (!binPath) {
+      return {
+        success: false,
+        notInstalled: true,
+        error: 'cloudflared is not installed on this system.',
+        port
+      };
+    }
+
     if (this.tunnels.has(port)) {
       const existing = this.tunnels.get(port);
       if (existing.status === 'active' || existing.status === 'starting') {
@@ -66,7 +77,7 @@ class TunnelManager {
       let resolved = false;
 
       try {
-        const child = spawn('cloudflared', ['tunnel', '--url', targetUrl, '--no-autoupdate'], {
+        const child = spawn(binPath, ['tunnel', '--url', targetUrl, '--no-autoupdate'], {
           stdio: ['ignore', 'pipe', 'pipe']
         });
 

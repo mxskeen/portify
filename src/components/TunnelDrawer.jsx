@@ -7,10 +7,18 @@ import {
   Check, 
   Terminal, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  Download,
+  AlertCircle 
 } from 'lucide-react';
 
-export default function TunnelDrawer({ tunnels = [], onStopTunnel, onCopyText }) {
+export default function TunnelDrawer({ 
+  tunnels = [], 
+  onStopTunnel, 
+  onCopyText,
+  isCloudflaredInstalled = true,
+  onInstallCloudflared
+}) {
   const [copiedPort, setCopiedPort] = useState(null);
   const [expandedLogs, setExpandedLogs] = useState({});
 
@@ -44,6 +52,30 @@ export default function TunnelDrawer({ tunnels = [], onStopTunnel, onCopyText })
           {tunnels.filter((t) => t.status === 'active').length} active
         </div>
       </div>
+
+      {!isCloudflaredInstalled && (
+        <div className="mb-4 p-3.5 rounded-xl border border-sky-500/20 bg-sky-500/10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+              <Download className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-semibold text-xs text-zinc-100">cloudflared is not installed</div>
+              <div className="text-[11px] text-zinc-400 mt-0.5">
+                Install the official Cloudflare binary to start exposing local ports to the internet.
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={onInstallCloudflared}
+            className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black font-semibold text-xs transition flex items-center gap-1.5 shrink-0 shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Install Now</span>
+          </button>
+        </div>
+      )}
 
       {tunnels.length === 0 ? (
         <div className="rounded-xl border border-white/[0.06] p-12 text-center bg-[#0d0f13]">

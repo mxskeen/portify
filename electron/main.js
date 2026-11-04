@@ -2,12 +2,14 @@ import { app, BrowserWindow, Tray, Menu, ipcMain, shell, clipboard, nativeImage 
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
+import fs from 'fs';
 
 import { scanAllPorts } from './portScanner.js';
 import { getDockerContainers, stopContainer, killContainer, restartContainer } from './dockerScanner.js';
 import { killPortProcess } from './processKiller.js';
 import { tunnelManager } from './tunnelManager.js';
 import { isAutostartEnabled, setAutostart, ensureLinuxDesktopIntegration } from './autostart.js';
+import { checkAllDependencies, installCloudflared, startDockerService } from './dependencyManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +17,9 @@ const __dirname = path.dirname(__filename);
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
+  console.log('[Portify] Another instance is already running in the background/tray. Focusing existing instance...');
   app.quit();
+  process.exit(0);
 }
 
 app.setName('Portify');
@@ -40,6 +44,13 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const startMinimized = process.argv.includes('--minimized') || process.argv.includes('--hidden');
 
 function createMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1240,
     height: 820,
@@ -77,11 +88,22 @@ function createMainWindow() {
     }
   });
 
+  const distPath = path.join(__dirname, '../dist/index.html');
+  const hasDist = fs.existsSync(distPath);
+  const isDev = process.env.NODE_ENV === 'development';
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.on('did-fail-load', () => {
+      if (hasDist) {
+        console.log('[Portify] Dev server not responding on 5173. Falling back to local dist build...');
+        mainWindow.loadFile(distPath);
+      }
+    });
+  } else if (hasDist) {
+    mainWindow.loadFile(distPath);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadURL('http://localhost:5173');
   }
 
   // Intercept window close to minimize to tray instead
@@ -356,4 +378,26 @@ ipcMain.handle('system:getInfo', () => {
     freemem: os.freemem(),
     cpus: os.cpus().length
   };
+});
+
+// Dependency Management handlers
+ipcMain.handle('deps:check', async (_event, forceFresh = false) => {
+  return await checkAllDependencies(forceFresh);
+});
+
+ipcMain.handle('deps:installCloudflared', async () => {
+  try {
+    const result = await installCloudflared((progress) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('deps:progress', { tool: 'cloudflared', ...progress });
+      }
+    });
+    return { success: true, ...result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('deps:startDockerService', async () => {
+  return await startDockerService();
 });

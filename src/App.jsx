@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal';
 import ElevatedKillModal from './components/ElevatedKillModal';
 import OnboardingModal from './components/OnboardingModal';
 import QuickSearchModal from './components/QuickSearchModal';
+import DependencyModal from './components/DependencyModal';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -22,6 +23,8 @@ export default function App() {
   const [inspectProcess, setInspectProcess] = useState(null);
   const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dependencies, setDependencies] = useState(null);
+  const [depModal, setDepModal] = useState({ open: false, type: 'cloudflared', targetPort: null });
   const [initialLoading, setInitialLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem('portify_onboarding_v1');
@@ -80,6 +83,10 @@ export default function App() {
         setInitialLoading(false);
       }, Math.max(0, minDisplayTime - elapsed));
     });
+
+    if (window.api && window.api.checkDependencies) {
+      window.api.checkDependencies().then(setDependencies).catch(() => {});
+    }
 
     let unsubscribeTunnels = () => {};
     if (window.api && window.api.onTunnelUpdate) {
@@ -174,18 +181,38 @@ export default function App() {
   };
 
   const handleStartTunnel = async (port) => {
+    // If we know cloudflared is not installed, prompt user immediately
+    if (dependencies && dependencies.cloudflared && !dependencies.cloudflared.installed) {
+      setDepModal({ open: true, type: 'cloudflared', targetPort: port });
+      return;
+    }
+
     addToast('info', 'Cloudflare', `Starting tunnel for port ${port}...`);
     try {
       const res = await window.api.startTunnel(port);
       if (res.success && res.url) {
         addToast('success', 'Tunnel active', res.url);
         handleCopyText(res.url);
+      } else if (res.notInstalled) {
+        setDepModal({ open: true, type: 'cloudflared', targetPort: port });
       } else {
         addToast('error', 'Failed', res.error || 'Could not start tunnel');
       }
       fetchData(false);
     } catch (err) {
       addToast('error', 'Error', err.message);
+    }
+  };
+
+  const handleDependencyInstalled = async (tool, targetPort) => {
+    if (window.api && window.api.checkDependencies) {
+      const fresh = await window.api.checkDependencies(true);
+      setDependencies(fresh);
+    }
+    if (tool === 'cloudflared' && targetPort) {
+      handleStartTunnel(targetPort);
+    } else if (tool === 'docker') {
+      fetchData(true);
     }
   };
 
@@ -296,6 +323,8 @@ export default function App() {
           {activeTab === 'docker' && (
             <DockerView
               dockerResult={dockerResult}
+              dependencies={dependencies}
+              onOpenDockerSetup={() => setDepModal({ open: true, type: 'docker', targetPort: null })}
               onStopContainer={handleStopContainer}
               onKillContainer={handleKillContainer}
               onRestartContainer={handleRestartContainer}
@@ -306,6 +335,8 @@ export default function App() {
           {activeTab === 'tunnels' && (
             <TunnelDrawer
               tunnels={tunnels}
+              isCloudflaredInstalled={dependencies?.cloudflared?.installed !== false}
+              onInstallCloudflared={() => setDepModal({ open: true, type: 'cloudflared', targetPort: null })}
               onStopTunnel={handleStopTunnel}
               onCopyText={handleCopyText}
             />
@@ -339,8 +370,23 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsModal
+          dependencies={dependencies}
+          onOpenDependencyModal={(type) => setDepModal({ open: true, type, targetPort: null })}
           onClose={() => setSettingsOpen(false)}
           onShowToast={addToast}
+        />
+      )}
+
+      {/* In-App Dependency Installation / Permission Modal */}
+      {depModal.open && (
+        <DependencyModal
+          type={depModal.type}
+          targetPort={depModal.targetPort}
+          dependencies={dependencies}
+          onClose={() => setDepModal({ open: false, type: 'cloudflared', targetPort: null })}
+          onInstalled={handleDependencyInstalled}
+          onCopyText={handleCopyText}
+          addToast={addToast}
         />
       )}
 

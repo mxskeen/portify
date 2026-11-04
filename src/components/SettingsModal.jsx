@@ -8,10 +8,11 @@ import {
   Globe 
 } from 'lucide-react';
 
-export default function SettingsModal({ onClose, onShowToast }) {
+export default function SettingsModal({ onClose, onShowToast, dependencies = null, onOpenDependencyModal }) {
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [platform, setPlatform] = useState('');
   const [systemInfo, setSystemInfo] = useState(null);
+  const [deps, setDeps] = useState(dependencies);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,10 @@ export default function SettingsModal({ onClose, onShowToast }) {
 
     if (window.api && window.api.getSystemInfo) {
       window.api.getSystemInfo().then(setSystemInfo);
+    }
+
+    if (window.api && window.api.checkDependencies) {
+      window.api.checkDependencies().then(setDeps);
     }
 
     const handleKeyDown = (e) => {
@@ -173,17 +178,64 @@ export default function SettingsModal({ onClose, onShowToast }) {
           {/* Tools status */}
           <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
             <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between">
-              <span className="text-zinc-400">cloudflared</span>
-              <span className="text-emerald-400 flex items-center gap-1">
-                <Check className="w-3 h-3" /> ready
-              </span>
+              <div>
+                <span className="text-zinc-400 block">cloudflared</span>
+                <span className="text-[10px] text-zinc-500">
+                  {deps?.cloudflared?.version ? `v${deps.cloudflared.version}` : 'Tunnels daemon'}
+                </span>
+              </div>
+              {deps?.cloudflared?.installed ? (
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> ready
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenDependencyModal) onOpenDependencyModal('cloudflared');
+                  }}
+                  className="px-2 py-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 text-[10px] transition"
+                >
+                  Install
+                </button>
+              )}
             </div>
 
             <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between">
-              <span className="text-zinc-400">docker</span>
-              <span className="text-emerald-400 flex items-center gap-1">
-                <Check className="w-3 h-3" /> active
-              </span>
+              <div>
+                <span className="text-zinc-400 block">docker</span>
+                <span className="text-[10px] text-zinc-500">
+                  {deps?.docker?.version ? `v${deps.docker.version}` : 'Containers'}
+                </span>
+              </div>
+              {deps?.docker?.running ? (
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> active
+                </span>
+              ) : deps?.docker?.installed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenDependencyModal) onOpenDependencyModal('docker');
+                  }}
+                  className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] transition"
+                >
+                  Start
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenDependencyModal) onOpenDependencyModal('docker');
+                  }}
+                  className="px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.1] text-zinc-400 border border-white/[0.08] text-[10px] transition"
+                >
+                  Setup
+                </button>
+              )}
             </div>
           </div>
 

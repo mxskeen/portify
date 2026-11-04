@@ -31,6 +31,16 @@ contextBridge.exposeInMainWorld('api', {
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   copyToClipboard: (text) => ipcRenderer.invoke('clipboard:write', text),
 
+  // Dependencies & Tools
+  checkDependencies: (forceFresh) => ipcRenderer.invoke('deps:check', forceFresh),
+  installCloudflared: () => ipcRenderer.invoke('deps:installCloudflared'),
+  startDockerService: () => ipcRenderer.invoke('deps:startDockerService'),
+  onDependencyProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('deps:progress', handler);
+    return () => ipcRenderer.removeListener('deps:progress', handler);
+  },
+
   // System
   getSystemInfo: () => ipcRenderer.invoke('system:getInfo')
 });
