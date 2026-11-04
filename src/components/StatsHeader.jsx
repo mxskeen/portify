@@ -22,12 +22,12 @@ export default function StatsHeader({
   onMinimizeToTray
 }) {
   return (
-    <header className="h-12 px-4 bg-[#0d0f13] border-b border-white/[0.07] flex items-center justify-between select-none shrink-0 relative overflow-hidden">
+    <header className="h-12 px-4 bg-[#0d0f13] border-b border-white/[0.07] grid grid-cols-[1fr_auto_1fr] items-center select-none shrink-0 relative overflow-hidden">
       {/* Live Green Conduit Line spanning from Portify through tabs to right edge */}
       <div className="absolute left-[82px] right-0 top-1/2 -translate-y-1/2 h-[1.5px] bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400/40 shadow-[0_0_8px_rgba(16,185,129,0.6)] pointer-events-none z-0" />
 
       {/* Brand (Origin point of the green line) */}
-      <div className="flex items-center gap-2.5 z-10 bg-[#0d0f13] pr-2.5">
+      <div className="justify-self-start flex items-center gap-2.5 z-10 bg-[#0d0f13] pr-2.5">
         <img 
           src="./icon.png" 
           alt="Portify" 
@@ -41,7 +41,7 @@ export default function StatsHeader({
       </div>
 
       {/* Segmented Navigation - line passes directly through this center section */}
-      <div className="relative z-10 flex items-center p-0.5 bg-[#14171d]/90 backdrop-blur-md border border-white/[0.08] rounded-lg shadow-sm">
+      <div className="justify-self-center relative z-10 flex items-center p-0.5 bg-[#14171d]/90 backdrop-blur-md border border-white/[0.08] rounded-lg shadow-sm">
         <button
           onClick={() => setActiveTab('ports')}
           className={`flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-md transition-all ${
@@ -95,7 +95,7 @@ export default function StatsHeader({
       </div>
 
       {/* Global Actions on right */}
-      <div className="flex items-center gap-1.5 z-10 bg-[#0d0f13] pl-2.5">
+      <div className="justify-self-end flex items-center gap-1.5 z-10 bg-[#0d0f13] pl-2.5">
         {/* Auto Refresh Selector */}
         <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#14171d] border border-white/[0.06] text-xs text-zinc-400">
           <span className="text-[11px] font-mono text-zinc-400">Sync:</span>
