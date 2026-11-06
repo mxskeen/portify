@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Local Server & Port Dashboard for Developers",
+  "author": "maskeen <maskeensingh@protonmail.com>",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron . --no-sandbox\"",
@@ -32,6 +33,7 @@
         "AppImage",
         "deb"
       ],
+      "maintainer": "maskeen <maskeensingh@protonmail.com>",
       "category": "Development"
     },
     "win": {
