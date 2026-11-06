@@ -10,7 +10,7 @@ import {
   ShieldAlert 
 } from 'lucide-react';
 
-export default function ProcessModal({ processData, onClose, onKillPort, onCopyText }) {
+export default function ProcessModal({ processData, onClose, onKillPort, onCopyText, onViewLogs }) {
   const [copied, setCopied] = useState(false);
   const [killing, setKilling] = useState(false);
 
@@ -142,12 +142,27 @@ export default function ProcessModal({ processData, onClose, onKillPort, onCopyT
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-white/[0.07] bg-[#0d0f13] flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Cancel
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Cancel
+            </button>
+
+            {onViewLogs && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onViewLogs(processData);
+                }}
+                className="px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-xs font-mono font-medium flex items-center gap-1.5 transition"
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Live Logs</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {processData.user === 'root' && (

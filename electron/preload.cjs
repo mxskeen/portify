@@ -42,5 +42,20 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // System
-  getSystemInfo: () => ipcRenderer.invoke('system:getInfo')
+  getSystemInfo: () => ipcRenderer.invoke('system:getInfo'),
+
+  // Live Server Logs
+  detectLogSources: (target) => ipcRenderer.invoke('logs:detectSources', target),
+  startLogStream: (options) => ipcRenderer.invoke('logs:startStream', options),
+  stopLogStream: (streamId) => ipcRenderer.invoke('logs:stopStream', streamId),
+  onLogData: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('logs:data', handler);
+    return () => ipcRenderer.removeListener('logs:data', handler);
+  },
+  onLogStatus: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('logs:status', handler);
+    return () => ipcRenderer.removeListener('logs:status', handler);
+  }
 });

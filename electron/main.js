@@ -10,6 +10,7 @@ import { killPortProcess } from './processKiller.js';
 import { tunnelManager } from './tunnelManager.js';
 import { isAutostartEnabled, setAutostart, ensureLinuxDesktopIntegration } from './autostart.js';
 import { checkAllDependencies, installCloudflared, startDockerService } from './dependencyManager.js';
+import { logManager } from './logManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -259,6 +260,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  logManager.stopAll();
   tunnelManager.stopAllTunnels();
 });
 
@@ -422,4 +424,29 @@ ipcMain.handle('deps:installCloudflared', async () => {
 
 ipcMain.handle('deps:startDockerService', async () => {
   return await startDockerService();
+});
+
+// ==================== LIVE LOGS HANDLERS ====================
+ipcMain.handle('logs:detectSources', async (_event, target) => {
+  return await logManager.detectSources(target);
+});
+
+ipcMain.handle('logs:startStream', async (_event, options) => {
+  return await logManager.startStream(
+    options,
+    (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('logs:data', data);
+      }
+    },
+    (status) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('logs:status', status);
+      }
+    }
+  );
+});
+
+ipcMain.handle('logs:stopStream', (_event, streamId) => {
+  return logManager.stopStream(streamId);
 });

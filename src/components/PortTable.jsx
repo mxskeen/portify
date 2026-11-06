@@ -28,6 +28,7 @@ export default function PortTable({
   onStartTunnel, 
   onStopTunnel, 
   onInspectProcess,
+  onViewLogs,
   onCopyText
 }) {
   const [internalSearch, setInternalSearch] = useState('');
@@ -453,9 +454,19 @@ export default function PortTable({
                       )}
                     </td>
 
-                    {/* Actions: Info & Kill */}
+                    {/* Actions: Logs, Info & Kill */}
                     <td className="py-2.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {onViewLogs && (
+                          <button
+                            onClick={() => onViewLogs(p)}
+                            title="View Live Server Logs"
+                            className="p-1 rounded text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition"
+                          >
+                            <Terminal className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         <button
                           onClick={() => onInspectProcess(p)}
                           title="Process details"

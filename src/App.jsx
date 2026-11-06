@@ -9,6 +9,7 @@ import ElevatedKillModal from './components/ElevatedKillModal';
 import OnboardingModal from './components/OnboardingModal';
 import QuickSearchModal from './components/QuickSearchModal';
 import DependencyModal from './components/DependencyModal';
+import LogViewerModal from './components/LogViewerModal';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
   const [refreshRate, setRefreshRate] = useState(3000); // 3s default
   const [loading, setLoading] = useState(false);
   const [inspectProcess, setInspectProcess] = useState(null);
+  const [logTarget, setLogTarget] = useState(null);
   const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dependencies, setDependencies] = useState(null);
@@ -327,6 +329,7 @@ export default function App() {
               onStartTunnel={handleStartTunnel}
               onStopTunnel={handleStopTunnel}
               onInspectProcess={(p) => setInspectProcess(p)}
+              onViewLogs={(p) => setLogTarget(p)}
               onCopyText={handleCopyText}
             />
           )}
@@ -340,6 +343,7 @@ export default function App() {
               onKillContainer={handleKillContainer}
               onRestartContainer={handleRestartContainer}
               onStartTunnel={handleStartTunnel}
+              onViewLogs={(c) => setLogTarget(c)}
             />
           )}
 
@@ -375,6 +379,16 @@ export default function App() {
           processData={inspectProcess}
           onClose={() => setInspectProcess(null)}
           onKillPort={handleKillPort}
+          onCopyText={handleCopyText}
+          onViewLogs={(p) => setLogTarget(p)}
+        />
+      )}
+
+      {/* Live Server Logs Modal */}
+      {logTarget && (
+        <LogViewerModal
+          target={logTarget}
+          onClose={() => setLogTarget(null)}
           onCopyText={handleCopyText}
         />
       )}

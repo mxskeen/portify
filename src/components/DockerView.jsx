@@ -7,7 +7,8 @@ import {
   Globe, 
   AlertCircle,
   Play,
-  Settings 
+  Settings,
+  Terminal
 } from 'lucide-react';
 
 export default function DockerView({ 
@@ -16,6 +17,7 @@ export default function DockerView({
   onKillContainer, 
   onRestartContainer, 
   onStartTunnel,
+  onViewLogs,
   dependencies = null,
   onOpenDockerSetup
 }) {
@@ -152,38 +154,58 @@ export default function DockerView({
 
                   {/* Actions */}
                   <td className="py-3 px-4 text-right">
-                    {isRunning ? (
-                      <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1">
+                      {onViewLogs && (
                         <button
-                          onClick={() => handleAction(onRestartContainer, c.id, 'restart')}
-                          disabled={Boolean(actionInProgress)}
-                          title="Restart"
-                          className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition disabled:opacity-40"
+                          onClick={() => onViewLogs({
+                            name: c.name,
+                            title: c.name,
+                            isDocker: true,
+                            dockerContainer: c.name,
+                            dockerId: c.id,
+                            mappedPorts: c.mappedPorts,
+                            origin: c.image
+                          })}
+                          title="View Live Container Logs"
+                          className="p-1 rounded text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition"
                         >
-                          <RotateCw className={`w-3.5 h-3.5 ${actionInProgress === `restart-${c.id}` ? 'animate-spin' : ''}`} />
+                          <Terminal className="w-3.5 h-3.5" />
                         </button>
+                      )}
 
-                        <button
-                          onClick={() => handleAction(onStopContainer, c.id, 'stop')}
-                          disabled={Boolean(actionInProgress)}
-                          title="Stop Gracefully"
-                          className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition disabled:opacity-40"
-                        >
-                          Stop
-                        </button>
+                      {isRunning ? (
+                        <>
+                          <button
+                            onClick={() => handleAction(onRestartContainer, c.id, 'restart')}
+                            disabled={Boolean(actionInProgress)}
+                            title="Restart"
+                            className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition disabled:opacity-40"
+                          >
+                            <RotateCw className={`w-3.5 h-3.5 ${actionInProgress === `restart-${c.id}` ? 'animate-spin' : ''}`} />
+                          </button>
 
-                        <button
-                          onClick={() => handleAction(onKillContainer, c.id, 'kill')}
-                          disabled={Boolean(actionInProgress)}
-                          title="Force Kill"
-                          className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
-                        >
-                          Kill
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-zinc-600 font-mono">Inactive</span>
-                    )}
+                          <button
+                            onClick={() => handleAction(onStopContainer, c.id, 'stop')}
+                            disabled={Boolean(actionInProgress)}
+                            title="Stop Gracefully"
+                            className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition disabled:opacity-40"
+                          >
+                            Stop
+                          </button>
+
+                          <button
+                            onClick={() => handleAction(onKillContainer, c.id, 'kill')}
+                            disabled={Boolean(actionInProgress)}
+                            title="Force Kill"
+                            className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
+                          >
+                            Kill
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[11px] text-zinc-600 font-mono ml-1">Inactive</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
