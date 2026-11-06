@@ -57,5 +57,9 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event, status) => callback(status);
     ipcRenderer.on('logs:status', handler);
     return () => ipcRenderer.removeListener('logs:status', handler);
-  }
+  },
+
+  // Live HTTP Health & Latency
+  checkPortsHealth: (ports, force) => ipcRenderer.invoke('ports:checkHealth', ports, force),
+  pingPort: (port) => ipcRenderer.invoke('ports:ping', port)
 });

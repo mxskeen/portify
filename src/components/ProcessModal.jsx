@@ -9,8 +9,9 @@ import {
   User, 
   ShieldAlert 
 } from 'lucide-react';
+import HealthBadge from './HealthBadge';
 
-export default function ProcessModal({ processData, onClose, onKillPort, onCopyText, onViewLogs }) {
+export default function ProcessModal({ processData, onClose, onKillPort, onCopyText, onViewLogs, health }) {
   const [copied, setCopied] = useState(false);
   const [killing, setKilling] = useState(false);
 
@@ -58,6 +59,9 @@ export default function ProcessModal({ processData, onClose, onKillPort, onCopyT
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-white/[0.06] text-zinc-300">
               :{processData.port}
             </span>
+            {health && (
+              <HealthBadge health={health} port={processData.port} />
+            )}
           </div>
 
           <button

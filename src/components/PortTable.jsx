@@ -17,6 +17,7 @@ import {
   Layers,
   ArrowUpDown
 } from 'lucide-react';
+import HealthBadge from './HealthBadge';
 
 export default function PortTable({ 
   ports = [], 
@@ -29,6 +30,8 @@ export default function PortTable({
   onStopTunnel, 
   onInspectProcess,
   onViewLogs,
+  healthMap = new Map(),
+  onPingPort,
   onCopyText
 }) {
   const [internalSearch, setInternalSearch] = useState('');
@@ -332,14 +335,20 @@ export default function PortTable({
                   >
                     {/* Port & Address */}
                     <td className="py-2.5 px-4 font-mono">
-                      <div className="flex items-baseline gap-2">
+                      <div className="flex items-center gap-2">
                         <span className="font-semibold text-zinc-100 text-sm">
                           {p.port}
                         </span>
-                        <span className="text-[10px] text-zinc-500 uppercase">
-                          {p.protocol}
-                        </span>
-                        <span className="text-[10px] text-zinc-600 truncate max-w-[100px]" title={p.ip}>
+                        <HealthBadge 
+                          health={healthMap.get(String(p.port)) || healthMap.get(p.port)} 
+                          port={p.port} 
+                          onPing={onPingPort} 
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 mt-0.5">
+                        <span className="uppercase">{p.protocol}</span>
+                        <span>·</span>
+                        <span className="text-zinc-600 truncate max-w-[100px]" title={p.ip}>
                           {p.ip}
                         </span>
                       </div>

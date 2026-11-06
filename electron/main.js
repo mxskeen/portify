@@ -11,6 +11,7 @@ import { tunnelManager } from './tunnelManager.js';
 import { isAutostartEnabled, setAutostart, ensureLinuxDesktopIntegration } from './autostart.js';
 import { checkAllDependencies, installCloudflared, startDockerService } from './dependencyManager.js';
 import { logManager } from './logManager.js';
+import { healthChecker } from './healthChecker.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -449,4 +450,13 @@ ipcMain.handle('logs:startStream', async (_event, options) => {
 
 ipcMain.handle('logs:stopStream', (_event, streamId) => {
   return logManager.stopStream(streamId);
+});
+
+// ==================== LIVE HTTP HEALTH & LATENCY HANDLERS ====================
+ipcMain.handle('ports:checkHealth', async (_event, ports, force = false) => {
+  return await healthChecker.checkPorts(ports, force);
+});
+
+ipcMain.handle('ports:ping', async (_event, port) => {
+  return await healthChecker.checkPort(port);
 });

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, X, ChevronRight, Globe } from 'lucide-react';
+import HealthBadge from './HealthBadge';
 
 export default function QuickSearchModal({
   isOpen,
   onClose,
   ports = [],
   tunnels = [],
+  healthMap = new Map(),
   searchQuery = '',
   onUpdateSearch,
   onSelectPort
@@ -213,9 +215,14 @@ export default function QuickSearchModal({
                       />
                     </div>
 
-                    <div className="w-16 font-mono text-xs tabular-nums shrink-0 flex items-center gap-1.5">
+                    <div className="min-w-16 font-mono text-xs tabular-nums shrink-0 flex items-center gap-1.5">
                       <span className="font-semibold text-zinc-100">{p.port}</span>
                       <span className="text-[10px] text-zinc-500">{p.protocol}</span>
+                      <HealthBadge 
+                        health={healthMap.get(String(p.port)) || healthMap.get(p.port)} 
+                        port={p.port} 
+                        compact 
+                      />
                     </div>
 
                     {/* Process Info */}

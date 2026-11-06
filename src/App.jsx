@@ -23,6 +23,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [inspectProcess, setInspectProcess] = useState(null);
   const [logTarget, setLogTarget] = useState(null);
+  const [healthMap, setHealthMap] = useState(new Map());
   const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dependencies, setDependencies] = useState(null);
@@ -51,10 +52,12 @@ export default function App() {
     if (showLoading) setLoading(true);
 
     try {
+      let portList = [];
       if (window.api.scanAll) {
         const res = await window.api.scanAll();
         if (res && res.success) {
-          setPorts(res.ports || []);
+          portList = res.ports || [];
+          setPorts(portList);
           if (res.docker) setDockerResult(res.docker);
           if (res.tunnels) setTunnels(res.tunnels);
         }
@@ -64,15 +67,41 @@ export default function App() {
           window.api.getDockerContainers(),
           window.api.getTunnels()
         ]);
-        if (portsRes && portsRes.success) setPorts(portsRes.ports || []);
+        if (portsRes && portsRes.success) {
+          portList = portsRes.ports || [];
+          setPorts(portList);
+        }
         if (dockerRes) setDockerResult(dockerRes);
         if (tunnelsRes) setTunnels(tunnelsRes);
+      }
+
+      // Non-blocking background HTTP health & latency check
+      if (portList.length > 0 && window.api.checkPortsHealth) {
+        window.api.checkPortsHealth(portList).then((healthData) => {
+          if (healthData) {
+            setHealthMap(new Map(Object.entries(healthData)));
+          }
+        }).catch(() => {});
       }
     } catch (err) {
       console.error('Scan error:', err);
     } finally {
       if (showLoading) setLoading(false);
     }
+  }, []);
+
+  const handlePingPort = useCallback(async (port) => {
+    if (!window.api || !window.api.pingPort) return;
+    try {
+      const res = await window.api.pingPort(port);
+      if (res) {
+        setHealthMap((prev) => {
+          const next = new Map(prev);
+          next.set(String(port), res);
+          return next;
+        });
+      }
+    } catch (e) {}
   }, []);
 
   // Initial load & interval polling
@@ -330,6 +359,8 @@ export default function App() {
               onStopTunnel={handleStopTunnel}
               onInspectProcess={(p) => setInspectProcess(p)}
               onViewLogs={(p) => setLogTarget(p)}
+              healthMap={healthMap}
+              onPingPort={handlePingPort}
               onCopyText={handleCopyText}
             />
           )}
@@ -365,6 +396,7 @@ export default function App() {
         onClose={() => setSearchModalOpen(false)}
         ports={ports}
         tunnels={tunnels}
+        healthMap={healthMap}
         searchQuery={searchQuery}
         onUpdateSearch={setSearchQuery}
         onSelectPort={(port) => {
@@ -381,6 +413,7 @@ export default function App() {
           onKillPort={handleKillPort}
           onCopyText={handleCopyText}
           onViewLogs={(p) => setLogTarget(p)}
+          health={healthMap.get(String(inspectProcess.port)) || healthMap.get(inspectProcess.port)}
         />
       )}
 
