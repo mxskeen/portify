@@ -61,5 +61,15 @@ contextBridge.exposeInMainWorld('api', {
 
   // Live HTTP Health & Latency
   checkPortsHealth: (ports, force) => ipcRenderer.invoke('ports:checkHealth', ports, force),
-  pingPort: (port) => ipcRenderer.invoke('ports:ping', port)
+  pingPort: (port) => ipcRenderer.invoke('ports:ping', port),
+
+  // Auto Updater
+  checkForUpdates: (manual) => ipcRenderer.invoke('update:check', manual),
+  restartAndInstallUpdate: () => ipcRenderer.invoke('update:install'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:getStatus'),
+  onUpdateStatus: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('update:status', handler);
+    return () => ipcRenderer.removeListener('update:status', handler);
+  }
 });

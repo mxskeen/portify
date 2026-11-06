@@ -5,7 +5,9 @@ import {
   Power, 
   Check, 
   Box, 
-  Globe 
+  Globe,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 export default function SettingsModal({ onClose, onShowToast, dependencies = null, onOpenDependencyModal }) {
@@ -14,6 +16,35 @@ export default function SettingsModal({ onClose, onShowToast, dependencies = nul
   const [systemInfo, setSystemInfo] = useState(null);
   const [deps, setDeps] = useState(dependencies);
   const [saving, setSaving] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  useEffect(() => {
+    if (window.api && window.api.getUpdateStatus) {
+      window.api.getUpdateStatus().then(setUpdateStatus);
+    }
+    if (window.api && window.api.onUpdateStatus) {
+      return window.api.onUpdateStatus((status) => {
+        setUpdateStatus(status);
+        if (status.state !== 'checking') setCheckingUpdate(false);
+      });
+    }
+  }, []);
+
+  const handleManualCheckUpdate = async () => {
+    if (!window.api || !window.api.checkForUpdates) return;
+    setCheckingUpdate(true);
+    try {
+      const res = await window.api.checkForUpdates(true);
+      if (res && res.state === 'dev') {
+        onShowToast('info', 'Dev Mode', 'Running locally in dev. Updates are enabled in packaged releases.');
+      } else if (res && res.error) {
+        onShowToast('error', 'Update Check Failed', res.error);
+      }
+    } finally {
+      setTimeout(() => setCheckingUpdate(false), 800);
+    }
+  };
 
   useEffect(() => {
     if (window.api && window.api.getAutostartStatus) {
@@ -237,6 +268,53 @@ export default function SettingsModal({ onClose, onShowToast, dependencies = nul
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Software Updates */}
+          <div className="p-3 rounded-lg bg-black/40 border border-white/[0.05] flex items-center justify-between">
+            <div>
+              <div className="font-medium text-zinc-200 text-xs flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Portify v{updateStatus?.version || updateStatus?.currentVersion || '1.0.0'}</span>
+              </div>
+              <div className="text-[11px] text-zinc-500 mt-0.5">
+                {updateStatus?.state === 'ready' ? (
+                  <span className="text-emerald-400 font-medium">v{updateStatus.version} ready to install</span>
+                ) : updateStatus?.state === 'downloading' ? (
+                  <span className="text-sky-400">Downloading v{updateStatus.version}...</span>
+                ) : updateStatus?.state === 'checking' || checkingUpdate ? (
+                  <span className="text-zinc-400">Checking for updates...</span>
+                ) : updateStatus?.state === 'latest' ? (
+                  <span className="text-zinc-400">You are on the latest version</span>
+                ) : (
+                  <span>Auto-updates via GitHub Releases</span>
+                )}
+              </div>
+            </div>
+
+            {updateStatus?.state === 'ready' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.api && window.api.restartAndInstallUpdate) {
+                    window.api.restartAndInstallUpdate();
+                  }
+                }}
+                className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-[11px] transition"
+              >
+                Restart & Apply
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleManualCheckUpdate}
+                disabled={checkingUpdate}
+                className="px-2.5 py-1 rounded bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 border border-white/[0.08] text-[11px] transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin text-emerald-400' : ''}`} />
+                <span>{checkingUpdate ? 'Checking...' : 'Check Now'}</span>
+              </button>
+            )}
           </div>
 
           {/* About & GitHub */}

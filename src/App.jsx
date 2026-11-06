@@ -10,6 +10,7 @@ import OnboardingModal from './components/OnboardingModal';
 import QuickSearchModal from './components/QuickSearchModal';
 import DependencyModal from './components/DependencyModal';
 import LogViewerModal from './components/LogViewerModal';
+import UpdateNotification from './components/UpdateNotification';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
   const [healthMap, setHealthMap] = useState(new Map());
   const [elevatedTarget, setElevatedTarget] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
   const [dependencies, setDependencies] = useState(null);
   const [depModal, setDepModal] = useState({ open: false, type: 'cloudflared', targetPort: null });
   const [initialLoading, setInitialLoading] = useState(true);
@@ -126,8 +128,16 @@ export default function App() {
       });
     }
 
+    let unsubscribeUpdates = () => {};
+    if (window.api && window.api.onUpdateStatus) {
+      unsubscribeUpdates = window.api.onUpdateStatus((status) => {
+        setUpdateStatus(status);
+      });
+    }
+
     return () => {
       unsubscribeTunnels();
+      unsubscribeUpdates();
     };
   }, [fetchData]);
 
@@ -464,6 +474,17 @@ export default function App() {
           onDismiss={handleDismissOnboarding}
         />
       )}
+
+      {/* In-App Auto-Update Notification */}
+      <UpdateNotification
+        updateStatus={updateStatus}
+        onDismiss={() => setUpdateStatus(null)}
+        onRestartAndInstall={() => {
+          if (window.api && window.api.restartAndInstallUpdate) {
+            window.api.restartAndInstallUpdate();
+          }
+        }}
+      />
 
       {/* Subtle Toast System */}
       <Toast toasts={toasts} onDismiss={dismissToast} />

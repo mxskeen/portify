@@ -12,6 +12,7 @@ import { isAutostartEnabled, setAutostart, ensureLinuxDesktopIntegration } from 
 import { checkAllDependencies, installCloudflared, startDockerService } from './dependencyManager.js';
 import { logManager } from './logManager.js';
 import { healthChecker } from './healthChecker.js';
+import { updateManager } from './updateManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -241,6 +242,8 @@ app.whenReady().then(() => {
   }
   createTray();
   createMainWindow();
+  updateManager.setWindow(mainWindow);
+  updateManager.init();
 
   // Connect tunnel manager events to renderer
   tunnelManager.setEventEmitter((event, data) => {
@@ -459,4 +462,18 @@ ipcMain.handle('ports:checkHealth', async (_event, ports, force = false) => {
 
 ipcMain.handle('ports:ping', async (_event, port) => {
   return await healthChecker.checkPort(port);
+});
+
+// ==================== AUTO UPDATER HANDLERS ====================
+ipcMain.handle('update:check', async (_event, manual = true) => {
+  return await updateManager.checkForUpdates(manual);
+});
+
+ipcMain.handle('update:install', () => {
+  updateManager.quitAndInstall();
+  return true;
+});
+
+ipcMain.handle('update:getStatus', () => {
+  return updateManager.getStatus();
 });
