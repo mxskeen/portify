@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, RefreshCw, Zap } from 'lucide-react';
+import { ExternalLink, RefreshCw, Zap, Lock } from 'lucide-react';
 
 export default function HealthBadge({ 
   health, 
@@ -10,16 +10,9 @@ export default function HealthBadge({
 }) {
   const [isPinging, setIsPinging] = useState(false);
 
-  if (!health) {
-    return (
-      <span 
-        title="Checking health..."
-        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-600 bg-white/[0.02] border border-white/[0.04] ${className}`}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 animate-pulse" />
-        {!compact && <span>pinging</span>}
-      </span>
-    );
+  // If no health data, or if it is a non-web socket (system infrastructure, UDP, closed socket), don't show any badge
+  if (!health || (!health.alive && health.isWeb === false && health.type !== 'raw-tcp')) {
+    return null;
   }
 
   const handleOpenBrowser = (e) => {
@@ -44,16 +37,20 @@ export default function HealthBadge({
     }
   };
 
-  // 1. Alive HTTP / HTTPS
+  // 1. Alive HTTP / HTTPS Server
   if (health.alive && health.status) {
     const is2xx3xx = health.status >= 200 && health.status < 400;
-    const is4xx = health.status >= 400 && health.status < 500;
+    const isAuth = health.status === 401 || health.status === 403;
+    const is4xx = health.status >= 400 && health.status < 500 && !isAuth;
     const is5xx = health.status >= 500;
 
     let badgeColors = 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/25';
     let dotColor = 'bg-emerald-400 animate-pulse';
 
-    if (is4xx) {
+    if (isAuth) {
+      badgeColors = 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/25';
+      dotColor = 'bg-sky-400';
+    } else if (is4xx) {
       badgeColors = 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/25';
       dotColor = 'bg-amber-400';
     } else if (is5xx) {
@@ -64,7 +61,11 @@ export default function HealthBadge({
     return (
       <div 
         onClick={handleOpenBrowser}
-        title={`HTTP ${health.status} ${health.statusText || ''} (${health.latencyMs}ms roundtrip)\nClick to open in default browser\nRight-click to recheck`}
+        title={
+          isAuth 
+            ? `HTTP ${health.status} Protected (${health.latencyMs}ms)\nServer active and requires authentication\nClick to open in browser`
+            : `HTTP ${health.status} ${health.statusText || ''} (${health.latencyMs}ms roundtrip)\nClick to open in default browser\nRight-click to recheck`
+        }
         onContextMenu={(e) => {
           e.preventDefault();
           handleRecheck(e);
@@ -72,6 +73,7 @@ export default function HealthBadge({
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border cursor-pointer select-none transition group ${badgeColors} ${className}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+        {isAuth ? <Lock className="w-2.5 h-2.5 opacity-80" /> : null}
         <span className="font-semibold">{health.status}</span>
         <span className="opacity-60 text-[9px]">· {health.latencyMs}ms</span>
         <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 transition shrink-0 ml-0.5" />
@@ -79,12 +81,12 @@ export default function HealthBadge({
     );
   }
 
-  // 2. Hung / Timeout
-  if (health.type === 'timeout') {
+  // 2. Verified Dev/Web Server that is actually Hung / Timed Out
+  if (health.type === 'timeout' && health.isWeb) {
     return (
       <div 
         onClick={handleRecheck}
-        title="HTTP request timed out after 1000ms. Server process may be frozen, hung, or awaiting a dead lock.\nClick to re-ping."
+        title="Web server timed out after 900ms. Process may be deadlocked, frozen, or awaiting a database lock.\nClick to re-ping."
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono border bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/25 cursor-pointer transition ${className}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
@@ -94,27 +96,18 @@ export default function HealthBadge({
     );
   }
 
-  // 3. Raw TCP / Database (PostgreSQL, Redis, MySQL, non-HTTP)
+  // 3. Raw TCP (PostgreSQL, Redis, MySQL, active binary sockets)
   if (health.type === 'raw-tcp') {
     return (
       <span 
-        title={`Raw TCP socket active (${health.error || 'connected'}). Database or binary TCP protocol, not HTTP.`}
+        title={`Active TCP service (${health.error || 'connected'}). Database or binary TCP connection.`}
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400 bg-white/[0.03] border border-white/[0.06] select-none ${className}`}
       >
-        <Zap className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+        <Zap className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
         <span>TCP</span>
       </span>
     );
   }
 
-  // 4. Closed / Refused
-  return (
-    <span 
-      title={`Port connection ${health.error || 'closed'}`}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500 bg-white/[0.02] border border-white/[0.04] select-none ${className}`}
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0" />
-      <span>Inactive</span>
-    </span>
-  );
+  return null;
 }

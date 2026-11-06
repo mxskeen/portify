@@ -1,18 +1,41 @@
 import http from 'http';
 import https from 'https';
 
+// Known system/infrastructure ports that should never be probed via HTTP
+const SYSTEM_INFRA_PORTS = new Set([
+  53,   // DNS (systemd-resolved, bind)
+  67,   // DHCP
+  68,   // DHCP
+  123,  // NTP
+  137,  // NetBIOS
+  138,  // NetBIOS
+  139,  // NetBIOS
+  445,  // SMB
+  631,  // CUPS printing
+  1900, // SSDP
+  5353, // mDNS
+  5355  // LLMNR
+]);
+
 class HealthChecker {
   constructor() {
     this.cache = new Map(); // port -> { data, timestamp }
-    this.cacheTtlMs = 3000;  // 3s cache
+    this.cacheTtlMs = 4000;  // 4s cache
   }
 
   /**
    * Ping a single port over HTTP (with HTTPS fallback)
    */
-  async checkPort(port, timeoutMs = 1200) {
+  async checkPort(port, timeoutMs = 900, isDevPort = false) {
     if (!port || isNaN(port) || port < 1 || port > 65535) {
-      return { port, alive: false, error: 'INVALID_PORT' };
+      return { port, alive: false, isWeb: false, error: 'INVALID_PORT' };
+    }
+
+    const portNum = Number(port);
+
+    // Completely skip system infrastructure ports
+    if (SYSTEM_INFRA_PORTS.has(portNum)) {
+      return { port: portNum, alive: false, isWeb: false, type: 'system' };
     }
 
     const tryProtocol = (isHttps) => {
@@ -23,7 +46,7 @@ class HealthChecker {
         const req = client.request(
           {
             hostname: '127.0.0.1',
-            port,
+            port: portNum,
             path: '/',
             method: 'GET',
             timeout: timeoutMs,
@@ -35,10 +58,10 @@ class HealthChecker {
           },
           (res) => {
             const latencyMs = Date.now() - startTime;
-            // Drain data to free memory
-            res.resume();
+            res.resume(); // drain data
             resolve({
               alive: true,
+              isWeb: true,
               type: 'http',
               protocol: isHttps ? 'https' : 'http',
               status: res.statusCode,
@@ -53,7 +76,8 @@ class HealthChecker {
           req.destroy();
           resolve({
             alive: false,
-            type: 'timeout',
+            isWeb: isDevPort,
+            type: isDevPort ? 'timeout' : 'non-http',
             protocol: isHttps ? 'https' : 'http',
             status: null,
             error: 'TIMEOUT',
@@ -67,6 +91,7 @@ class HealthChecker {
           const isRawTcp = ['ECONNRESET', 'EPROTO', 'HPE_INVALID_CONSTANT', 'HPE_INVALID_HEADER_TOKEN', 'HPE_INVALID_METHOD'].includes(code);
           resolve({
             alive: false,
+            isWeb: false,
             type: isRawTcp ? 'raw-tcp' : 'error',
             protocol: isHttps ? 'https' : 'http',
             status: null,
@@ -79,32 +104,35 @@ class HealthChecker {
       });
     };
 
-    // 1. Try plain HTTP first
+    // 1. Try plain HTTP
     const httpRes = await tryProtocol(false);
     if (httpRes.alive) {
-      const result = { port, ...httpRes };
-      this.cache.set(port, { data: result, timestamp: Date.now() });
+      const result = { port: portNum, ...httpRes };
+      this.cache.set(portNum, { data: result, timestamp: Date.now() });
       return result;
     }
 
-    // 2. If it failed with SSL or proto error, try HTTPS
+    // 2. Fall back to HTTPS if SSL / protocol error
     const err = httpRes.error || '';
     if (err.includes('EPROTO') || err.includes('SSL') || err.includes('HPE_INVALID')) {
       const httpsRes = await tryProtocol(true);
       if (httpsRes.alive) {
-        const result = { port, ...httpsRes };
-        this.cache.set(port, { data: result, timestamp: Date.now() });
+        const result = { port: portNum, ...httpsRes };
+        this.cache.set(portNum, { data: result, timestamp: Date.now() });
         return result;
       }
     }
 
-    const finalRes = { port, ...httpRes };
-    this.cache.set(port, { data: finalRes, timestamp: Date.now() });
+    const finalRes = { port: portNum, ...httpRes };
+    this.cache.set(portNum, { data: finalRes, timestamp: Date.now() });
     return finalRes;
   }
 
   /**
-   * Check multiple ports with controlled concurrency (e.g. 6 at a time)
+   * Check multiple ports with safety filtering:
+   * - Never check UDP sockets
+   * - Skip known system infrastructure ports (< 1024 / DNS / mDNS / SSDP)
+   * - Only probe TCP web/dev/app ports
    */
   async checkPorts(ports = [], force = false) {
     const results = {};
@@ -112,9 +140,40 @@ class HealthChecker {
     const portsToQuery = [];
 
     for (const p of ports) {
-      const portNum = Number(p.port !== undefined ? p.port : p);
+      const isObj = typeof p === 'object' && p !== null;
+      const portNum = Number(isObj ? p.port : p);
       if (isNaN(portNum)) continue;
 
+      const protocol = isObj && p.protocol ? p.protocol.toLowerCase() : 'tcp';
+      const isUdp = protocol.includes('udp');
+      const isSystem = (isObj && (p.isSystem || p.user === 'root')) || SYSTEM_INFRA_PORTS.has(portNum);
+      const isDev = isObj && (p.tag === 'dev' || p.isDocker || portNum >= 1024 || [80, 443, 3000, 5000, 8000, 8080].includes(portNum));
+
+      // 1. Immediately skip UDP sockets
+      if (isUdp) {
+        results[portNum] = {
+          port: portNum,
+          alive: false,
+          isWeb: false,
+          type: 'udp',
+          protocol: 'udp'
+        };
+        continue;
+      }
+
+      // 2. Immediately skip critical system ports
+      if (SYSTEM_INFRA_PORTS.has(portNum) || (isSystem && portNum < 1024 && portNum !== 80 && portNum !== 443)) {
+        results[portNum] = {
+          port: portNum,
+          alive: false,
+          isWeb: false,
+          type: 'system',
+          protocol: 'tcp'
+        };
+        continue;
+      }
+
+      // 3. Check cache
       if (!force && this.cache.has(portNum)) {
         const cached = this.cache.get(portNum);
         if (now - cached.timestamp < this.cacheTtlMs) {
@@ -122,7 +181,8 @@ class HealthChecker {
           continue;
         }
       }
-      portsToQuery.push(portNum);
+
+      portsToQuery.push({ port: portNum, isDev });
     }
 
     if (portsToQuery.length === 0) {
@@ -133,16 +193,16 @@ class HealthChecker {
     const concurrency = 6;
     for (let i = 0; i < portsToQuery.length; i += concurrency) {
       const batch = portsToQuery.slice(i, i + concurrency);
-      const batchPromises = batch.map(port => this.checkPort(port));
+      const batchPromises = batch.map(item => this.checkPort(item.port, 900, item.isDev));
       const batchResults = await Promise.allSettled(batchPromises);
 
       for (let j = 0; j < batch.length; j++) {
-        const port = batch[j];
+        const port = batch[j].port;
         const res = batchResults[j];
         if (res.status === 'fulfilled') {
           results[port] = res.value;
         } else {
-          results[port] = { port, alive: false, error: res.reason?.message || 'FAILED' };
+          results[port] = { port, alive: false, isWeb: false, error: 'FAILED' };
         }
       }
     }
@@ -150,9 +210,6 @@ class HealthChecker {
     return results;
   }
 
-  /**
-   * Clear cache
-   */
   clearCache() {
     this.cache.clear();
   }

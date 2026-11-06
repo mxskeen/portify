@@ -15,7 +15,8 @@ import {
   Flame,
   Database,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  ShieldAlert
 } from 'lucide-react';
 import HealthBadge from './HealthBadge';
 
@@ -339,11 +340,13 @@ export default function PortTable({
                         <span className="font-semibold text-zinc-100 text-sm">
                           {p.port}
                         </span>
-                        <HealthBadge 
-                          health={healthMap.get(String(p.port)) || healthMap.get(p.port)} 
-                          port={p.port} 
-                          onPing={onPingPort} 
-                        />
+                        {p.protocol !== 'udp' && (
+                          <HealthBadge 
+                            health={healthMap.get(String(p.port)) || healthMap.get(p.port)} 
+                            port={p.port} 
+                            onPing={onPingPort} 
+                          />
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 mt-0.5">
                         <span className="uppercase">{p.protocol}</span>
@@ -484,14 +487,23 @@ export default function PortTable({
                           <Info className="w-3.5 h-3.5" />
                         </button>
 
-                        <button
-                          onClick={() => handleKill(p)}
-                          disabled={isKilling}
-                          title={p.isDocker ? "Kill container" : "Force kill process"}
-                          className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
-                        >
-                          {isKilling ? 'Killing...' : 'Kill'}
-                        </button>
+                        {p.port === 53 || (p.isSystem && p.port < 1024 && !p.isDocker && p.port !== 80 && p.port !== 443) ? (
+                          <span 
+                            title="Protected: Core system network service. Killing disabled to protect network connectivity."
+                            className="px-2 py-0.5 rounded text-[10px] font-mono text-zinc-600 bg-white/[0.02] border border-white/[0.04] cursor-not-allowed select-none"
+                          >
+                            System
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleKill(p)}
+                            disabled={isKilling}
+                            title={p.isDocker ? "Kill container" : "Force kill process"}
+                            className="px-2 py-1 rounded text-[11px] font-mono text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
+                          >
+                            {isKilling ? 'Killing...' : 'Kill'}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
