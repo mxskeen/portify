@@ -3,3 +3,10 @@ dist/
 dist-electron/
 .DS_Store
 *.log
+
+# Media & Launch video workspace
+launch-video/
+*.mp4
+*.wav
+*.m4a
+

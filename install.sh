@@ -71,7 +71,11 @@ BIN_DIR="${HOME}/.local/bin"
 DESKTOP_DIR="${HOME}/.local/share/applications"
 ICON_DIR="${HOME}/.local/share/icons/hicolor/512x512/apps"
 
-mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR"
+mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+
+if [ "$PLATFORM" = "linux" ]; then
+  mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
+fi
 
 # 3. Fetch latest release information from GitHub API
 echo -e "\n${SKY}→${RESET} Checking latest Portify release from GitHub..."
@@ -90,7 +94,6 @@ if [ -n "$LATEST_RELEASE_JSON" ]; then
   # Parse tag
   TAG_NAME=$(echo "$LATEST_RELEASE_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4 || echo "latest")
   
-  # Find download URL for AppImage or zip
   if [ "$PLATFORM" = "linux" ]; then
     DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*\.AppImage' | head -1 || true)
   elif [ "$PLATFORM" = "mac" ]; then
@@ -98,6 +101,53 @@ if [ -n "$LATEST_RELEASE_JSON" ]; then
   fi
 fi
 
+# ==================== macOS INSTALLATION ====================
+if [ "$PLATFORM" = "mac" ]; then
+  if [ -z "$DOWNLOAD_URL" ]; then
+    echo -e "${RED}Error: Could not locate macOS release (.dmg) on GitHub.${RESET}"
+    echo -e "Please download directly from: ${SKY}https://github.com/${REPO}/releases/latest${RESET}"
+    exit 1
+  fi
+
+  TMP_DMG="$(mktemp -t portify-dmg-XXXXXX).dmg"
+  echo -e "${SKY}→${RESET} Downloading Portify ${BOLD}${TAG_NAME}${RESET} for macOS..."
+  if command -v curl >/dev/null 2>&1; then
+    curl -# -L -o "$TMP_DMG" "$DOWNLOAD_URL"
+  else
+    wget --progress=bar:force -O "$TMP_DMG" "$DOWNLOAD_URL"
+  fi
+
+  echo -e "${SKY}→${RESET} Installing Portify into /Applications..."
+  MOUNT_DIR=$(mktemp -d)
+  hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
+
+  APP_DIR="/Applications"
+  if [ ! -w "$APP_DIR" ]; then
+    APP_DIR="${HOME}/Applications"
+    mkdir -p "$APP_DIR"
+  fi
+
+  rm -rf "$APP_DIR/Portify.app"
+  cp -R "$MOUNT_DIR/Portify.app" "$APP_DIR/" 2>/dev/null || true
+  hdiutil detach "$MOUNT_DIR" -quiet || true
+  rm -f "$TMP_DMG"
+
+  # Symlink binary for terminal usage
+  if [ -d "$APP_DIR/Portify.app" ]; then
+    ln -sf "$APP_DIR/Portify.app/Contents/MacOS/Portify" "$BIN_DIR/portify"
+  fi
+
+  echo -e "\n${GREEN}✓ Portify successfully installed to $APP_DIR/Portify.app!${RESET}"
+  echo -e "  Launcher: ${BOLD}Available in Launchpad & Applications${RESET}"
+  echo -e "  CLI:      ${BOLD}$BIN_DIR/portify${RESET}"
+
+  echo -e "\n${SKY}Starting Portify...${RESET}"
+  open "$APP_DIR/Portify.app" || true
+  echo -e "${GREEN}Done!${RESET}\n"
+  exit 0
+fi
+
+# ==================== LINUX INSTALLATION ====================
 TARGET_FILE="$INSTALL_DIR/Portify.AppImage"
 
 if [ -n "$DOWNLOAD_URL" ]; then
@@ -132,14 +182,13 @@ chmod +x "$TARGET_FILE"
 ln -sf "$TARGET_FILE" "$BIN_DIR/portify"
 
 # 5. Download icon and create .desktop entry for Linux
-if [ "$PLATFORM" = "linux" ]; then
-  ICON_PATH="$ICON_DIR/portify.png"
-  curl -fsSL "https://raw.githubusercontent.com/${REPO}/main/public/icon.png" -o "$ICON_PATH" 2>/dev/null || true
-  if [ ! -f "$ICON_PATH" ] && [ -f "$INSTALL_DIR/icon.png" ]; then
-    ICON_PATH="$INSTALL_DIR/icon.png"
-  fi
+ICON_PATH="$ICON_DIR/portify.png"
+curl -fsSL "https://raw.githubusercontent.com/${REPO}/main/public/icon.png" -o "$ICON_PATH" 2>/dev/null || true
+if [ ! -f "$ICON_PATH" ] && [ -f "$INSTALL_DIR/icon.png" ]; then
+  ICON_PATH="$INSTALL_DIR/icon.png"
+fi
 
-  cat > "$DESKTOP_DIR/portify.desktop" <<EOF
+cat > "$DESKTOP_DIR/portify.desktop" <<EOF
 [Desktop Entry]
 Name=Portify
 GenericName=Port & Server Dashboard
@@ -153,12 +202,11 @@ Keywords=ports;docker;tunnel;cloudflare;server;
 StartupNotify=true
 StartupWMClass=Portify
 EOF
-  chmod +x "$DESKTOP_DIR/portify.desktop"
+chmod +x "$DESKTOP_DIR/portify.desktop"
 
-  # Update desktop database if available
-  if command -v update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-  fi
+# Update desktop database if available
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
 fi
 
 # 6. Ensure ~/.local/bin is in PATH notice

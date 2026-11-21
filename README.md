@@ -34,7 +34,11 @@ curl -fsSL https://raw.githubusercontent.com/mxskeen/portify/main/install.sh | b
 
 ### Windows
 
-Download the latest installer executable from [GitHub Releases](https://github.com/mxskeen/portify/releases/latest).
+Run in PowerShell:
+```powershell
+irm https://raw.githubusercontent.com/mxskeen/portify/main/install.ps1 | iex
+```
+Or download the installer executable directly from [GitHub Releases](https://github.com/mxskeen/portify/releases/latest).
 
 ---
 

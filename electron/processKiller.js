@@ -1,8 +1,33 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import util from 'util';
 import net from 'net';
 
 const execAsync = util.promisify(exec);
+
+/**
+ * Run sudo command safely by piping password via stdin (no shell execution)
+ */
+function execSudoWithPassword(args, password) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('sudo', ['-S', '-p', '', ...args], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stderr = '';
+    child.stderr.on('data', (d) => { stderr += d.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(stderr.trim() || `sudo exited with code ${code}`));
+      }
+    });
+
+    child.stdin.write(password + '\n');
+    child.stdin.end();
+  });
+}
 
 /**
  * Check if a TCP port is currently open and accepting connections
@@ -148,15 +173,19 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
 
   // Handle explicit sudo / elevated kill immediately if requested or password provided
   if (forceElevated || sudoPassword) {
+    const cleanPort = port ? parseInt(port, 10) : 0;
+
     for (const targetPid of targetPids) {
+      const cleanPid = parseInt(targetPid, 10);
+      if (isNaN(cleanPid) || cleanPid <= 0) continue;
+
       if (platform === 'linux') {
         if (sudoPassword) {
           try {
-            // Use sudo -S with password input
-            const safePwd = sudoPassword.replace(/"/g, '\\"');
-            await execAsync(`echo "${safePwd}" | sudo -S kill -9 ${targetPid}`);
-            if (port) {
-              try { await execAsync(`echo "${safePwd}" | sudo -S fuser -k -9 ${port}/tcp`); } catch (e) {}
+            // Safely stream password directly to sudo stdin without shell injection risks
+            await execSudoWithPassword(['kill', '-9', String(cleanPid)], sudoPassword);
+            if (cleanPort > 0) {
+              try { await execSudoWithPassword(['fuser', '-k', '-9', `${cleanPort}/tcp`], sudoPassword); } catch (e) {}
             }
           } catch (sudoErr) {
             return {
@@ -168,9 +197,9 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
         } else {
           // Try pkexec graphical dialog
           try {
-            await execAsync(`pkexec kill -9 ${targetPid}`);
-            if (port) {
-              try { await execAsync(`pkexec fuser -k -9 ${port}/tcp`); } catch (e) {}
+            await execAsync(`pkexec kill -9 ${cleanPid}`);
+            if (cleanPort > 0) {
+              try { await execAsync(`pkexec fuser -k -9 ${cleanPort}/tcp`); } catch (e) {}
             }
           } catch (pkErr) {
             return {
@@ -182,13 +211,13 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
         }
       } else if (platform === 'darwin') {
         try {
-          await execAsync(`osascript -e 'do shell script "kill -9 ${targetPid}" with administrator privileges'`);
+          await execAsync(`osascript -e 'do shell script "kill -9 ${cleanPid}" with administrator privileges'`);
         } catch (macErr) {
           return { success: false, needsElevation: true, error: macErr.message };
         }
       } else if (platform === 'win32') {
         try {
-          await execAsync(`powershell -Command "Start-Process taskkill -ArgumentList '/F /T /PID ${targetPid}' -Verb RunAs -Wait"`);
+          await execAsync(`powershell -Command "Start-Process taskkill -ArgumentList '/F /T /PID ${cleanPid}' -Verb RunAs -Wait"`);
         } catch (winErr) {
           return { success: false, needsElevation: true, error: winErr.message };
         }
@@ -198,7 +227,7 @@ export async function killPortProcess({ port, pid, isDocker, dockerContainer, fo
     await sleep(250);
     return {
       success: true,
-      message: `Port ${port || targetPids[0]} force-killed with administrative privileges.`
+      message: `Port ${cleanPort || targetPids[0]} force-killed with administrative privileges.`
     };
   }
 
