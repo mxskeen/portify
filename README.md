@@ -47,7 +47,7 @@ Or download the installer executable directly from [GitHub Releases](https://git
 - **Port & Process Introspection**: Identifies the exact process, user, PID, memory usage, CPU load, uptime, working directory, and command line bound to every listening port.
 - **Live HTTP Health & Latency Pinging**: Continuously verifies application-layer responsiveness, showing HTTP status codes (200, 404, 500), round-trip latency in milliseconds, and frozen/hung server warnings. Click any badge to open directly in your default browser.
 - **Embedded Real-Time Server Logs**: Integrated terminal console that streams live logs directly from Docker containers, systemd services, standard output/error file redirects, and application log files with ANSI syntax coloring and real-time keyword filtering.
-- **Instant Cloudflare Public Tunnels**: Expose any local listening port to a secure public HTTPS URL (`trycloudflare.com`) without account configuration or firewall adjustments.
+- **Instant Cloudflare Public Tunnels**: Expose any local listening port to a secure public HTTPS URL (`try.cloudflare.com`) without account configuration or firewall adjustments.
 - **Docker Container Management**: Inspect all running and stopped containers, live CPU and memory metrics, mapped host ports, and execute stop, restart, or force-kill commands.
 - **Process Termination**: Terminate unresponsive processes cleanly, with elevated authentication prompts for root-owned and system services.
 - **In-App Background Updates**: Automatically checks for new releases, downloads updates in the background, and prompts to restart and apply with one click.
