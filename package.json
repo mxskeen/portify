@@ -1,6 +1,6 @@
 {
   "name": "portify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Local Server & Port Dashboard for Developers",
   "author": "maskeen <maskeensingh@protonmail.com>",
@@ -43,8 +43,22 @@
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal",
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal",
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     }
   },

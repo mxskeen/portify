@@ -36,7 +36,7 @@ if (-not $Asset) {
 $InstallerPath = Join-Path $env:TEMP $Asset.name
 Write-Host "→ Downloading $($Asset.name)..." -ForegroundColor Cyan
 
-Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $InstallerPath
+Invoke-WebRequest -Uri $Asset.browser_download_url -OutFile $InstallerPath -UseBasicParsing
 
 Write-Host "`n✓ Download complete! Launching Portify installer..." -ForegroundColor Green
 Start-Process -FilePath $InstallerPath

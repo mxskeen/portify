@@ -95,9 +95,28 @@ if [ -n "$LATEST_RELEASE_JSON" ]; then
   TAG_NAME=$(echo "$LATEST_RELEASE_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4 || echo "latest")
   
   if [ "$PLATFORM" = "linux" ]; then
-    DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*\.AppImage' | head -1 || true)
+    DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o "https://[^\"]*${ARCH_NAME}[^\"]*\.AppImage" | head -1 || true)
+    if [ -z "$DOWNLOAD_URL" ]; then
+      DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*\.AppImage' | head -1 || true)
+    fi
   elif [ "$PLATFORM" = "mac" ]; then
-    DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*\.dmg' | head -1 || true)
+    # Priority 1: Match exact architecture dmg (x64 or arm64)
+    DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o "https://[^\"]*${ARCH_NAME}[^\"]*\.dmg" | head -1 || true)
+
+    # Priority 2: Universal dmg (runs natively on both Intel & Apple Silicon)
+    if [ -z "$DOWNLOAD_URL" ]; then
+      DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*universal[^"]*\.dmg' | head -1 || true)
+    fi
+
+    # Priority 3: Fallback dmg check with architecture validation
+    if [ -z "$DOWNLOAD_URL" ]; then
+      DOWNLOAD_URL=$(echo "$LATEST_RELEASE_JSON" | grep -o 'https://[^"]*\.dmg' | head -1 || true)
+      if [ -n "$DOWNLOAD_URL" ] && [[ "$DOWNLOAD_URL" == *"arm64"* ]] && [ "$ARCH_NAME" = "x64" ]; then
+        echo -e "${RED}Error: The available macOS release is built for Apple Silicon (arm64), but your Mac has an Intel (x64) processor.${RESET}"
+        echo -e "An Intel (x64) or Universal macOS release is required for this Mac."
+        exit 1
+      fi
+    fi
   fi
 fi
 
@@ -178,8 +197,17 @@ fi
 
 chmod +x "$TARGET_FILE"
 
-# 4. Create symlink in ~/.local/bin
-ln -sf "$TARGET_FILE" "$BIN_DIR/portify"
+# 4. Create launcher wrapper in ~/.local/bin to guarantee execution across modern Linux distros (Ubuntu 24.04+, Debian, Fedora)
+cat > "$BIN_DIR/portify" <<'EOF'
+#!/usr/bin/env bash
+TARGET="$HOME/.local/share/portify/Portify.AppImage"
+if [ ! -f "$TARGET" ]; then
+  echo "Error: Portify binary not found at $TARGET" >&2
+  exit 1
+fi
+exec "$TARGET" --no-sandbox "$@"
+EOF
+chmod +x "$BIN_DIR/portify"
 
 # 5. Download icon and create .desktop entry for Linux
 ICON_PATH="$ICON_DIR/portify.png"
