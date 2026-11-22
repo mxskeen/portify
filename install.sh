@@ -197,7 +197,7 @@ fi
 
 chmod +x "$TARGET_FILE"
 
-# 4. Create launcher wrapper in ~/.local/bin to guarantee execution across modern Linux distros (Ubuntu 24.04+, Debian, Fedora)
+# 4. Create launcher wrapper in ~/.local/bin to guarantee execution across all Linux distros (Ubuntu 24.04+, Debian, Fedora, Arch, openSUSE)
 cat > "$BIN_DIR/portify" <<'EOF'
 #!/usr/bin/env bash
 TARGET="$HOME/.local/share/portify/Portify.AppImage"
@@ -205,7 +205,14 @@ if [ ! -f "$TARGET" ]; then
   echo "Error: Portify binary not found at $TARGET" >&2
   exit 1
 fi
-exec "$TARGET" --no-sandbox "$@"
+
+EXTRA_FLAGS="--no-sandbox"
+# If libfuse2 is not installed, use --appimage-extract-and-run so it runs without FUSE dependency
+if ! ldconfig -p 2>/dev/null | grep -q "libfuse.so.2"; then
+  EXTRA_FLAGS="--appimage-extract-and-run --no-sandbox"
+fi
+
+exec "$TARGET" $EXTRA_FLAGS "$@"
 EOF
 chmod +x "$BIN_DIR/portify"
 
